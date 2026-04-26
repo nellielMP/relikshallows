@@ -4902,6 +4902,18 @@ body.skyui-open {
   background:
     radial-gradient(circle at 65% 0%, rgba(99, 155, 204, 0.22), rgba(0, 0, 0, 0) 56%),
     linear-gradient(165deg, rgba(20, 26, 36, 0.96), rgba(10, 12, 16, 0.98));
+  position: relative;
+}
+
+.gate__close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.45rem;
+  border: 0;
+  background: transparent;
+  color: #c7d9ec;
+  font-size: 1.15rem;
+  cursor: pointer;
 }
 
 .gate__title {

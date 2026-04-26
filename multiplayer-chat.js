@@ -17,6 +17,7 @@
   var gateRoot = document.getElementById("login-gate");
   var gateStatusEl = document.getElementById("gate-auth-status");
   var gateEnterBtn = document.getElementById("gate-enter-btn");
+  var gateCloseBtn = document.getElementById("gate-close-btn");
   var authConnectedEl = document.getElementById("authbar-connected");
   var authPlayerEl = document.getElementById("authbar-player");
   var logoutBtn = document.getElementById("authbar-logout");
@@ -35,6 +36,7 @@
     !gateRoot ||
     !gateStatusEl ||
     !gateEnterBtn ||
+    !gateCloseBtn ||
     !authConnectedEl ||
     !authPlayerEl ||
     !logoutBtn ||
@@ -49,6 +51,7 @@
     me: null,
     messages: []
   };
+  var gateDismissed = false;
 
   var socket = null;
 
@@ -86,13 +89,14 @@
       authStatusEl.textContent = "Vous discutez en tant que " + sanitize(state.me.name) + ".";
       messageInput.placeholder = "Ecrire un message...";
       gateStatusEl.textContent = "Connecte en tant que " + sanitize(state.me.name) + ".";
+      gateDismissed = false;
       gateRoot.classList.remove("gate--open");
     } else {
       authPlayerEl.textContent = "";
       authStatusEl.textContent = "Connectez-vous avec Google pour discuter.";
       messageInput.placeholder = "Connexion Google requise";
       gateStatusEl.textContent = "Connexion requise.";
-      gateRoot.classList.add("gate--open");
+      if (!gateDismissed) gateRoot.classList.add("gate--open");
     }
     window.dispatchEvent(
       new CustomEvent("nordhaven:auth-changed", {
@@ -338,6 +342,10 @@
 
   gateEnterBtn.addEventListener("click", function () {
     if (!state.me) return;
+    gateRoot.classList.remove("gate--open");
+  });
+  gateCloseBtn.addEventListener("click", function () {
+    gateDismissed = true;
     gateRoot.classList.remove("gate--open");
   });
   profilePeekClose.addEventListener("click", closeProfilePeek);
