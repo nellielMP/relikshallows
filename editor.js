@@ -152,8 +152,7 @@
   function resetLegacyQuestsMonstersOnce() {
     try {
       if (localStorage.getItem(LEGACY_RESET_MARKER) === "1") return;
-      writeStorageJson(STORAGE_MONSTERS, []);
-      writeStorageJson(STORAGE_QUESTS, []);
+      // Legacy migration disabled: keep existing editor content intact.
       localStorage.setItem(LEGACY_RESET_MARKER, "1");
     } catch (_) {}
   }

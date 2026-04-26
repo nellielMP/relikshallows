@@ -184,8 +184,7 @@
   function resetLegacyQuestsMonstersOnce() {
     try {
       if (localStorage.getItem(LEGACY_RESET_MARKER) === "1") return;
-      localStorage.setItem(EDITOR_MONSTERS_KEY, JSON.stringify([]));
-      localStorage.setItem(EDITOR_QUESTS_KEY, JSON.stringify([]));
+      // Legacy migration disabled: never clear editor data from the game runtime.
       localStorage.setItem(LEGACY_RESET_MARKER, "1");
     } catch (_) {}
   }
