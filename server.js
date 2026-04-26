@@ -225,14 +225,39 @@ function cookieToSid(cookieHeader) {
 }
 
 function publicUser(user) {
+  const rating = Math.max(100, Math.floor(Number(user && user.arenaRating) || 1000));
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     avatarUrl: user.avatarUrl,
     hasCharacter: !!(user && user.character),
-    guildId: user && user.guildId ? user.guildId : null
+    guildId: user && user.guildId ? user.guildId : null,
+    arenaRating: rating
   };
+}
+
+function getArenaStats(user) {
+  return {
+    rating: Math.max(100, Math.floor(Number(user && user.arenaRating) || 1000)),
+    wins: Math.max(0, Math.floor(Number(user && user.arenaWins) || 0)),
+    losses: Math.max(0, Math.floor(Number(user && user.arenaLosses) || 0))
+  };
+}
+
+function snapshotPower(snapshot) {
+  const s = snapshot && snapshot.stats ? snapshot.stats : {};
+  const v = Math.max(0, Number(s.vitalite) || 0);
+  const i = Math.max(0, Number(s.intelligence) || 0);
+  const e = Math.max(0, Number(s.endurance) || 0);
+  const atkMin = Math.max(0, Number(s.attackMin) || 0);
+  const atkMax = Math.max(0, Number(s.attackMax) || 0);
+  const def = Math.max(0, Number(s.defense) || 0);
+  return v * 1.2 + i * 1.1 + e * 1.1 + atkMin * 1.8 + atkMax * 1.5 + def * 1.3;
+}
+
+function expectedScore(a, b) {
+  return 1 / (1 + Math.pow(10, (b - a) / 400));
 }
 
 function buildPublicProfileFromUser(user) {
@@ -511,6 +536,78 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/chat/messages", async (req, res) => {
   const messages = await getChatMessages(req.query.limit);
   return res.json({ messages });
+});
+
+app.get("/api/arena/leaderboard", async (_req, res) => {
+  const users = await readJson(USERS_PATH, []);
+  const rows = users
+    .filter((u) => u && u.character)
+    .map((u) => {
+      const arena = getArenaStats(u);
+      return {
+        userId: u.id,
+        name: sanitizeText((u.character && u.character.name) || u.name || "Joueur", 40),
+        rating: arena.rating,
+        wins: arena.wins,
+        losses: arena.losses
+      };
+    })
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 25);
+  return res.json({ players: rows });
+});
+
+app.post("/api/arena/fight", async (req, res) => {
+  const me = await getAuthenticatedUser(req);
+  if (!me) return res.status(401).json({ error: "Authentification requise" });
+  if (!me.character) return res.status(400).json({ error: "Personnage requis" });
+  const targetUserId = sanitizeText(req.body && req.body.targetUserId, 64);
+  if (!targetUserId) return res.status(400).json({ error: "Cible invalide" });
+  if (targetUserId === me.id) return res.status(400).json({ error: "Impossible de se battre contre soi-meme" });
+
+  const users = await readJson(USERS_PATH, []);
+  const meIdx = users.findIndex((u) => u.id === me.id);
+  const targetIdx = users.findIndex((u) => u.id === targetUserId);
+  if (meIdx < 0 || targetIdx < 0) return res.status(404).json({ error: "Joueur introuvable" });
+  const target = users[targetIdx];
+  if (!target.character) return res.status(400).json({ error: "La cible n'a pas de personnage" });
+
+  const meArena = getArenaStats(users[meIdx]);
+  const tArena = getArenaStats(target);
+  const mePow = snapshotPower(users[meIdx].profileSnapshot);
+  const tPow = snapshotPower(target.profileSnapshot);
+  const meScoreBase = meArena.rating + mePow * 3;
+  const tScoreBase = tArena.rating + tPow * 3;
+  const expectedMe = expectedScore(meScoreBase, tScoreBase);
+  const roll = Math.random();
+  const meWins = roll < expectedMe;
+  const K = 24;
+  const meNew = Math.round(meArena.rating + K * ((meWins ? 1 : 0) - expectedMe));
+  const tNew = Math.round(tArena.rating + K * ((meWins ? 0 : 1) - (1 - expectedMe)));
+
+  users[meIdx].arenaRating = Math.max(100, meNew);
+  users[targetIdx].arenaRating = Math.max(100, tNew);
+  users[meIdx].arenaWins = meArena.wins + (meWins ? 1 : 0);
+  users[meIdx].arenaLosses = meArena.losses + (meWins ? 0 : 1);
+  users[targetIdx].arenaWins = tArena.wins + (meWins ? 0 : 1);
+  users[targetIdx].arenaLosses = tArena.losses + (meWins ? 1 : 0);
+  users[meIdx].updatedAt = Date.now();
+  users[targetIdx].updatedAt = Date.now();
+  await writeJson(USERS_PATH, users);
+
+  return res.json({
+    result: meWins ? "win" : "loss",
+    me: {
+      name: sanitizeText((users[meIdx].character && users[meIdx].character.name) || users[meIdx].name || "Toi", 40),
+      ratingBefore: meArena.rating,
+      ratingAfter: users[meIdx].arenaRating
+    },
+    enemy: {
+      name: sanitizeText((target.character && target.character.name) || target.name || "Adversaire", 40),
+      ratingBefore: tArena.rating,
+      ratingAfter: users[targetIdx].arenaRating
+    }
+  });
 });
 
 app.get("/api/editor-config", async (_req, res) => {

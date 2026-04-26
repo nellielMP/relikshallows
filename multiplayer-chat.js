@@ -303,7 +303,7 @@
       authStatusEl.textContent = "GOOGLE_CLIENT_ID non configure cote serveur.";
       gateStatusEl.textContent = "GOOGLE_CLIENT_ID non configure cote serveur.";
       var hostNoId = document.getElementById("menu-google-login");
-      if (hostNoId) hostNoId.innerHTML = '<div class="mainmenu-portal__google-wait muted">Google non configure sur le serveur.</div>';
+      if (hostNoId) hostNoId.innerHTML = '<div class="muted">Google non configure sur le serveur.</div>';
       return true;
     }
 
@@ -325,11 +325,11 @@
     var host = document.getElementById("menu-google-login");
     if (!host) return;
     if (state.me) {
-      host.innerHTML = '<div class="mainmenu-portal__google-ok">Connecte en tant que ' + sanitize(state.me.name) + ".</div>";
+      host.innerHTML = '<div class="muted">Connecte en tant que ' + sanitize(state.me.name) + ".</div>";
       return;
     }
     if (!googleReady || !window.google || !window.google.accounts || !window.google.accounts.id) {
-      host.innerHTML = '<div class="mainmenu-portal__google-wait muted">Chargement Google...</div>';
+      host.innerHTML = '<div class="muted">Chargement Google...</div>';
       return;
     }
     host.innerHTML = "";
@@ -356,6 +356,7 @@
     panel.hidden = false;
     toggleBtn.setAttribute("aria-expanded", "true");
     root.classList.add("mp-chat--open");
+    messagesEl.scrollTop = messagesEl.scrollHeight;
     if (!messageInput.disabled) messageInput.focus();
   }
 

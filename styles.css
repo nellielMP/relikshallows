@@ -5417,3 +5417,81 @@ body.body--menu .panel--center .panel__body {
 .guild-ui__member--empty {
   color: #aea18c;
 }
+
+/* Menu principal sobre */
+.mainmenu-login {
+  position: relative;
+  border: 1px solid #5f5445;
+  border-radius: 8px;
+  min-height: 18rem;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.mainmenu-login__veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(198, 152, 82, 0.2), rgba(0, 0, 0, 0) 42%),
+    linear-gradient(180deg, rgba(8, 7, 6, 0.5), rgba(8, 7, 6, 0.72));
+  backdrop-filter: blur(8px);
+}
+
+.mainmenu-login__content {
+  position: relative;
+  z-index: 1;
+  padding: 1.1rem 1rem;
+  text-align: center;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mainmenu-login__title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #f0e6d3;
+}
+
+.mainmenu-login__lead {
+  margin: 0;
+  color: #c8bda8;
+}
+
+.mainmenu-login__google {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patchnotes {
+  border-color: #5f5445;
+}
+
+.patchnotes__title {
+  margin: 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e3c98e;
+}
+
+.patchnotes__list {
+  margin: 0.5rem 0 0;
+  padding-left: 1rem;
+  line-height: 1.5;
+  color: #c4b89f;
+}
+
+.arena-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.arena-fight-btn {
+  width: auto;
+  min-width: 6rem;
+}

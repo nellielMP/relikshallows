@@ -1471,7 +1471,7 @@
   function render() {
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
-    document.body.classList.toggle("body--menu", state.mode === "menu");
+    document.body.classList.remove("body--menu");
     applyDefaultCursor();
     renderTopbarResources();
     if (state.mode === "menu") return renderMainMenu();
@@ -1568,35 +1568,44 @@
 
   function renderMainMenu() {
     var hasLinkedCharacter = !!(authUser && authUser.hasCharacter);
+    els.location.textContent = "Porte du Nord";
+    els.leftTitle.textContent = "Chronique";
+    els.centerTitle.textContent = "Connexion";
+    els.rightTitle.textContent = "Patchnotes";
     var nordhavenArt = getVillageArtUrl("Nordhaven");
     var bgStyle = isDataUrlIcon(nordhavenArt) ? ' style="background-image:url(' + nordhavenArt + ')"' : "";
-    els.location.textContent = "Porte du Nord";
-    els.leftTitle.textContent = "";
-    els.centerTitle.textContent = "";
-    els.rightTitle.textContent = "";
-    els.left.innerHTML = "";
-    els.right.innerHTML = "";
 
-    els.center.innerHTML = [
-      '<section class="landing-menu">',
-      '<div class="landing-menu__bg"' + bgStyle + "></div>",
-      '<div class="landing-menu__veil" aria-hidden="true"></div>',
-      '<div class="landing-menu__content">',
-      '<p class="landing-menu__eyebrow">Nordhaven Chronicles</p>',
-      '<h2 class="landing-menu__title">Entre dans un monde vivant</h2>',
-      '<p class="landing-menu__lead">' +
-        (hasLinkedCharacter
-          ? "Ton compte est reconnu. Le portail te ramene directement dans le monde."
-          : "Connecte-toi avec Google pour ouvrir ton destin dans le Nord.") +
-      "</p>",
-      '<div class="landing-menu__google" id="menu-google-login"></div>',
-      '<p class="landing-menu__hint">Sans personnage: creation automatique. Avec personnage: retour direct en jeu.</p>',
-      '<div class="landing-menu__meta">' +
-      '<span>Connexion: ' + (authUser ? "Google active" : "Non connecte") + "</span>" +
-      "</div>",
-      "</div>",
-      "</section>"
-    ].join("");
+    els.left.innerHTML =
+      '<div class="mainmenu-side card">' +
+      '<h4 class="mainmenu-side__title">Nordhaven</h4>' +
+      '<p class="mainmenu-side__line">Un vent froid traverse les palissades. Les contrats changent chaque nuit et les aventuriers laissent des traces dans les chroniques.</p>' +
+      '<p class="mainmenu-side__line muted">Connecte-toi pour reprendre ta progression.</p>' +
+      "</div>";
+
+    els.center.innerHTML =
+      '<section class="mainmenu-login" ' + bgStyle + ">" +
+      '<div class="mainmenu-login__veil"></div>' +
+      '<div class="mainmenu-login__content">' +
+      '<h2 class="mainmenu-login__title">Menu principal</h2>' +
+      '<p class="mainmenu-login__lead">' +
+      (hasLinkedCharacter
+        ? "Compte reconnu: connexion puis retour direct en jeu."
+        : "Connexion Google: creation auto si aucun personnage.") +
+      "</p>" +
+      '<div class="mainmenu-login__google" id="menu-google-login"></div>' +
+      "</div>" +
+      "</section>";
+
+    els.right.innerHTML =
+      '<section class="patchnotes card">' +
+      '<h4 class="patchnotes__title">Patchnotes recents</h4>' +
+      '<ul class="patchnotes__list">' +
+      "<li>Refonte de l'interface de connexion.</li>" +
+      "<li>Ajout du systeme de guilde.</li>" +
+      "<li>Nouveau tchat avec emojis.</li>" +
+      "<li>Equilibrage de la progression de combat.</li>" +
+      "</ul>" +
+      "</section>";
     window.dispatchEvent(new CustomEvent("nordhaven:menu-ready"));
   }
 
@@ -1845,6 +1854,11 @@
         slotKey: "inn"
       }),
       villageNavButton({
+        id: "open-arena",
+        label: "Arene",
+        slotKey: "map"
+      }),
+      villageNavButton({
         id: "open-map",
         label: "Portail de la ville",
         slotKey: "map",
@@ -1854,7 +1868,7 @@
         notifHtml: needsQuestTravel ? '<span class="notif-dot" aria-hidden="true">!</span>' : ""
       }),
       "</div>",
-      '<p class="village-scene__hint muted">Inventaire, marchand, forge, auberge et guilde. Le portail ouvre la carte du monde.</p>',
+      '<p class="village-scene__hint muted">Inventaire, marchand, forge, auberge, guilde et arene. Le portail ouvre la carte du monde.</p>',
       "</div>"
     ].join("");
 
@@ -1883,6 +1897,7 @@
     els.center.querySelector("#open-forge").addEventListener("click", openForgeDialog);
     els.center.querySelector("#open-inn").addEventListener("click", openInnDialog);
     els.center.querySelector("#open-guild").addEventListener("click", openGuildDialog);
+    els.center.querySelector("#open-arena").addEventListener("click", openArenaDialog);
     els.center.querySelector("#open-map").addEventListener("click", function () {
       runZoneTransition("Ouverture du portail...", function () {
         setMode("map");
@@ -4227,6 +4242,83 @@
           showToast(err.message || "Rejoindre impossible.", true);
         });
     });
+  }
+
+  function openArenaDialog() {
+    if (!authUser) {
+      showToast("Connexion Google requise pour l'arene.", true);
+      return;
+    }
+    els.skyuiRoot.innerHTML =
+      '<div class="skyui-overlay inv-overlay" role="dialog" aria-modal="true" aria-labelledby="arena-ui-title">' +
+      '<div class="skyui-window inv-window">' +
+      '<header class="skyui-header inv-window__header"><div class="inv-window__brand">' +
+      '<h2 class="inv-window__title" id="arena-ui-title">Arene asynchrone</h2>' +
+      '<p class="inv-window__subtitle">Defis Elo contre d autres joueurs</p></div><span class="skyui-header__hint">Echap pour fermer</span></header>' +
+      '<div class="skyui-body inv-window__body">' +
+      '<div id="arena-result" class="muted">Charge le classement...</div>' +
+      '<div id="arena-list" class="list"></div>' +
+      "</div>" +
+      '<footer class="skyui-footer inv-window__footer"><button type="button" class="btn skyui-close inv-window__close" id="arena-close-btn">Fermer</button></footer>' +
+      "</div></div>";
+    els.skyuiRoot.setAttribute("aria-hidden", "false");
+    document.body.classList.add("skyui-open");
+    var close = function () {
+      els.skyuiRoot.innerHTML = "";
+      els.skyuiRoot.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("skyui-open");
+      document.removeEventListener("keydown", onKey);
+    };
+    var onKey = function (e) { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    document.getElementById("arena-close-btn").addEventListener("click", close);
+    els.skyuiRoot.querySelector(".skyui-overlay").addEventListener("click", function (e) {
+      if (e.target.classList.contains("skyui-overlay")) close();
+    });
+    var listEl = document.getElementById("arena-list");
+    var resultEl = document.getElementById("arena-result");
+    apiJson("/api/arena/leaderboard")
+      .then(function (data) {
+        var rows = data && Array.isArray(data.players) ? data.players : [];
+        if (!rows.length) {
+          listEl.innerHTML = '<p class="muted">Aucun joueur classe pour le moment.</p>';
+          resultEl.textContent = "Aucun classement disponible.";
+          return;
+        }
+        resultEl.textContent = "Selectionne un joueur pour lancer un duel asynchrone.";
+        listEl.innerHTML = rows
+          .map(function (p) {
+            return '<div class="item arena-row"><div><strong>' + escapeHtml(p.name) + "</strong><div class=\"muted\">Elo " + p.rating + " · " + p.wins + "V/" + p.losses + 'D</div></div><button type="button" class="btn arena-fight-btn" data-id="' + escapeHtml(p.userId) + '">Defier</button></div>';
+          })
+          .join("");
+        listEl.querySelectorAll(".arena-fight-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var id = btn.getAttribute("data-id");
+            apiJson("/api/arena/fight", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ targetUserId: id })
+            })
+              .then(function (r) {
+                resultEl.textContent =
+                  (r.result === "win" ? "Victoire" : "Defaite") +
+                  " — Elo " +
+                  r.me.ratingBefore +
+                  " -> " +
+                  r.me.ratingAfter +
+                  " contre " +
+                  r.enemy.name +
+                  ".";
+              })
+              .catch(function (err) {
+                resultEl.textContent = err.message || "Combat impossible.";
+              });
+          });
+        });
+      })
+      .catch(function () {
+        resultEl.textContent = "Impossible de charger le classement.";
+      });
   }
 
   function companionStatusText() {
