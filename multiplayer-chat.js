@@ -51,7 +51,7 @@
     me: null,
     messages: []
   };
-  var gateDismissed = false;
+  var gateDismissed = localStorage.getItem("nordhaven-gate-dismissed") === "1";
 
   var socket = null;
 
@@ -90,6 +90,7 @@
       messageInput.placeholder = "Ecrire un message...";
       gateStatusEl.textContent = "Connecte en tant que " + sanitize(state.me.name) + ".";
       gateDismissed = false;
+      localStorage.removeItem("nordhaven-gate-dismissed");
       gateRoot.classList.remove("gate--open");
     } else {
       authPlayerEl.textContent = "";
@@ -346,6 +347,20 @@
   });
   gateCloseBtn.addEventListener("click", function () {
     gateDismissed = true;
+    localStorage.setItem("nordhaven-gate-dismissed", "1");
+    gateRoot.classList.remove("gate--open");
+  });
+  gateRoot.addEventListener("click", function (event) {
+    if (event.target !== gateRoot) return;
+    gateDismissed = true;
+    localStorage.setItem("nordhaven-gate-dismissed", "1");
+    gateRoot.classList.remove("gate--open");
+  });
+  window.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    if (!gateRoot.classList.contains("gate--open")) return;
+    gateDismissed = true;
+    localStorage.setItem("nordhaven-gate-dismissed", "1");
     gateRoot.classList.remove("gate--open");
   });
   profilePeekClose.addEventListener("click", closeProfilePeek);

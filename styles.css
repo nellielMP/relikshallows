@@ -4892,6 +4892,7 @@ body.skyui-open {
     radial-gradient(circle at 50% 20%, rgba(120, 180, 220, 0.12), rgba(0, 0, 0, 0) 46%),
     linear-gradient(180deg, rgba(4, 8, 14, 0.82), rgba(6, 5, 4, 0.86));
   backdrop-filter: blur(5px);
+  pointer-events: none;
 }
 
 .gate__card {
@@ -4903,6 +4904,7 @@ body.skyui-open {
     radial-gradient(circle at 65% 0%, rgba(99, 155, 204, 0.22), rgba(0, 0, 0, 0) 56%),
     linear-gradient(165deg, rgba(20, 26, 36, 0.96), rgba(10, 12, 16, 0.98));
   position: relative;
+  pointer-events: auto;
 }
 
 .gate__close {
@@ -4914,6 +4916,11 @@ body.skyui-open {
   color: #c7d9ec;
   font-size: 1.15rem;
   cursor: pointer;
+}
+
+.player-peek[hidden],
+.gate[hidden] {
+  display: none !important;
 }
 
 .gate__title {
