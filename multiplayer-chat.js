@@ -180,7 +180,6 @@
     await api("/api/logout", { method: "POST" });
     state.me = null;
     setAuthUi();
-    gateRoot.classList.add("gate--open");
   }
 
   function initGoogleButton() {

@@ -1229,6 +1229,7 @@
   resetLegacyQuestsMonstersOnce();
   var state = loadState() || makeInitialState();
   normalizeSaveState();
+  state.mode = "menu";
 
   var els = {
     leftTitle: document.getElementById("left-title"),
@@ -1388,8 +1389,6 @@
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
     applyDefaultCursor();
-    if (state.mode === "onboarding") return renderOnboarding();
-    if (!state.player && state.mode !== "creation") return renderOnboarding();
     if (state.mode === "menu") return renderMainMenu();
     if (state.mode === "creation") return renderCreation();
     if (state.mode === "village") return renderVillage();
