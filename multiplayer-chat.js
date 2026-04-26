@@ -2,6 +2,7 @@
   "use strict";
 
   var MAX_MESSAGES = 120;
+  var GAME_SAVE_KEY = "nordhaven-save-v3";
 
   var root = document.getElementById("mp-chat");
   if (!root) return;
@@ -49,6 +50,18 @@
 
   function sanitize(text) {
     return String(text || "").replace(/[<>]/g, "");
+  }
+
+  function getCharacterNameFromSave() {
+    try {
+      var raw = localStorage.getItem(GAME_SAVE_KEY);
+      if (!raw) return "";
+      var save = JSON.parse(raw);
+      var name = save && save.player && save.player.name ? String(save.player.name).trim() : "";
+      return sanitize(name).slice(0, 40);
+    } catch (_) {
+      return "";
+    }
   }
 
   function fmtTime(timestamp) {
@@ -243,7 +256,10 @@
     if (!text) return;
 
     if (socket) {
-      socket.emit("chat:send", { text: text });
+      socket.emit("chat:send", {
+        text: text,
+        characterName: getCharacterNameFromSave()
+      });
     }
     messageInput.value = "";
     messageInput.focus();

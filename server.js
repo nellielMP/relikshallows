@@ -167,15 +167,17 @@ async function upsertGoogleUser(googlePayload) {
   return user;
 }
 
-async function appendChatMessage(user, text) {
+async function appendChatMessage(user, text, characterName) {
   const cleanText = sanitizeText(text, 220);
   if (!cleanText) return null;
+  const cleanCharacterName = sanitizeText(characterName, 40);
+  const displayName = cleanCharacterName || sanitizeText(user.name, 40) || "Joueur";
 
   const messages = await readJson(CHAT_PATH, []);
   const payload = {
     id: crypto.randomBytes(10).toString("hex"),
     userId: user.id,
-    name: sanitizeText(user.name, 40) || "Joueur",
+    name: displayName,
     text: cleanText,
     createdAt: Date.now()
   };
@@ -338,7 +340,11 @@ io.on("connection", (socket) => {
     try {
       const user = socket.data.user;
       if (!user) return;
-      const msg = await appendChatMessage(user, payload && payload.text);
+      const msg = await appendChatMessage(
+        user,
+        payload && payload.text,
+        payload && payload.characterName
+      );
       if (!msg) return;
       io.emit("chat:message", msg);
     } catch (_) {
