@@ -6,7 +6,31 @@
     "name": "nelliu",
     "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocJNXR9_zcPvbjbeajw7_B_CFLWI3TY3OSdS9R5KzRG0ayHFtmk=s96-c",
     "createdAt": 1777111650996,
-    "updatedAt": 1777207193910
+    "updatedAt": 1777225742967,
+    "profileSnapshot": {
+      "level": 1,
+      "iconUrl": "",
+      "stats": {
+        "vitalite": 17,
+        "intelligence": 5,
+        "endurance": 12,
+        "attackMin": 4,
+        "attackMax": 7,
+        "defense": 0
+      },
+      "stuff": {
+        "weapon": "",
+        "armor": "",
+        "necklace": ""
+      },
+      "updatedAt": 1777225742967
+    },
+    "character": {
+      "name": "Test",
+      "raceId": "nordique",
+      "classId": "guerrier",
+      "createdAt": 1777225293982
+    }
   },
   {
     "id": "bbf4bff6243f159133697a3b",
@@ -15,6 +39,30 @@
     "name": "Léon Maurin",
     "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocK_ZQTMcwyX0DcgMIrLNrwv_elLviZHcgvW46O52MEP0nfhEw=s96-c",
     "createdAt": 1777207181922,
-    "updatedAt": 1777207181922
+    "updatedAt": 1777225266807,
+    "profileSnapshot": {
+      "level": 1,
+      "iconUrl": "",
+      "stats": {
+        "vitalite": 16,
+        "intelligence": 7,
+        "endurance": 12,
+        "attackMin": 4,
+        "attackMax": 7,
+        "defense": 0
+      },
+      "stuff": {
+        "weapon": "",
+        "armor": "",
+        "necklace": ""
+      },
+      "updatedAt": 1777225266807
+    },
+    "character": {
+      "name": "TestNell",
+      "raceId": "elfe_sylvestre",
+      "classId": "guerrier",
+      "createdAt": 1777224620282
+    }
   }
 ]

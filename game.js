@@ -1050,11 +1050,6 @@
       statBox("endurance", "END", "Endurance", player.endurance),
       "</div>",
       "</section>",
-      '<section class="hero-sheet__section hero-sheet__section--compact" aria-label="Compagnon">',
-      '<div class="hero-meta-grid hero-meta-grid--solo">',
-      '<div class="hero-meta-card hero-meta-card--wide"><span class="hero-meta-card__label">Compagnon</span><span class="hero-meta-card__value hero-meta-card__value--small">' + escapeHtml(companionStatusText()) + "</span></div>",
-      "</div>",
-      "</section>",
       '<section class="hero-sheet__section" aria-label="Equipement">',
       '<h4 class="hero-sheet__section-title">Equipement</h4>',
       '<div class="hero-equip-banner">' +
@@ -1213,6 +1208,7 @@
   normalizeSaveState();
   state.mode = "menu";
   var authUser = null;
+  var guildState = null;
   var profileSyncTimer = null;
 
   var els = {
@@ -1224,23 +1220,60 @@
     center: document.getElementById("center-content"),
     right: document.getElementById("right-content"),
     topbarResources: document.getElementById("topbar-resources"),
+    topbarTools: document.getElementById("topbar-tools"),
     toast: document.getElementById("toast"),
     skyuiRoot: document.getElementById("skyui-root")
   };
+  var editorShortcutVisible = false;
 
   function renderTopbarResources() {
     if (!els.topbarResources) return;
     if (!state.player) {
-      els.topbarResources.textContent = "";
+      els.topbarResources.innerHTML = "";
       return;
     }
-    els.topbarResources.textContent =
-      "Or " +
+    var xpNow = Math.floor(state.player.xp || 0);
+    var xpNext = Math.max(1, Math.floor(state.player.xpToNext || 1));
+    var xpPct = pct(xpNow, xpNext);
+    els.topbarResources.innerHTML =
+      '<span class="topbar-gold" title="' +
       String(state.gold) +
-      " · XP " +
-      String(Math.floor(state.player.xp || 0)) +
+      ' septims">' +
+      goldIconInlineHtml() +
+      '<span class="topbar-gold__val">' +
+      String(state.gold) +
+      "</span></span>" +
+      '<span class="topbar-xp"><span class="topbar-xp__label">XP ' +
+      String(xpNow) +
       "/" +
-      String(Math.floor(state.player.xpToNext || 0));
+      String(xpNext) +
+      '</span><span class="topbar-xp__track"><span style="width:' +
+      String(xpPct) +
+      '%"></span></span></span>';
+  }
+
+  function initEditorShortcutToggle() {
+    if (!els.topbarTools) return;
+    els.topbarTools.hidden = true;
+    window.addEventListener("keydown", function (event) {
+      if (!(event.ctrlKey && event.altKey && (event.key === "e" || event.key === "E"))) return;
+      editorShortcutVisible = !editorShortcutVisible;
+      els.topbarTools.hidden = !editorShortcutVisible;
+      showToast(editorShortcutVisible ? "Lien éditeur affiché." : "Lien éditeur masqué.");
+    });
+  }
+
+  async function loadMyGuildState() {
+    if (!authUser) {
+      guildState = null;
+      return;
+    }
+    try {
+      var data = await apiJson("/api/guild/me");
+      guildState = data && data.guild ? { guild: data.guild, role: data.role } : null;
+    } catch (_) {
+      guildState = null;
+    }
   }
 
   function makeInitialState() {
@@ -1351,8 +1384,8 @@
     if (!state.resources || typeof state.resources !== "object") state.resources = { ironShard: 0 };
     if (typeof state.resources.ironShard !== "number") state.resources.ironShard = 0;
     if (!state.companion || typeof state.companion !== "object") state.companion = { hired: false, hp: 0, hpMax: 0, name: "Mercenaire", hireCost: 45 };
-    if (typeof state.companion.hired !== "boolean") state.companion.hired = false;
-    if (typeof state.companion.hp !== "number") state.companion.hp = 0;
+    state.companion.hired = false;
+    state.companion.hp = 0;
     if (typeof state.companion.hpMax !== "number") state.companion.hpMax = 0;
     if (!state.companion.name) state.companion.name = "Mercenaire";
     if (typeof state.companion.hireCost !== "number") state.companion.hireCost = 45;
@@ -1438,6 +1471,7 @@
   function render() {
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
+    document.body.classList.toggle("body--menu", state.mode === "menu");
     applyDefaultCursor();
     renderTopbarResources();
     if (state.mode === "menu") return renderMainMenu();
@@ -1533,74 +1567,36 @@
   }
 
   function renderMainMenu() {
-    var hasSave = !!state.player;
     var hasLinkedCharacter = !!(authUser && authUser.hasCharacter);
     var nordhavenArt = getVillageArtUrl("Nordhaven");
-    var backdropHtml = isDataUrlIcon(nordhavenArt)
-      ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
-      : '<div class="mainmenu-backdrop mainmenu-backdrop--fallback" aria-hidden="true"></div>';
+    var bgStyle = isDataUrlIcon(nordhavenArt) ? ' style="background-image:url(' + nordhavenArt + ')"' : "";
     els.location.textContent = "Porte du Nord";
-    els.leftTitle.textContent = "Chronique";
-    els.centerTitle.textContent = "Menu principal";
-    els.rightTitle.textContent = "Presence";
-
-    els.left.innerHTML = [
-      '<div class="mainmenu-lore card mainmenu-lore--fresh">',
-      '<p class="mainmenu-lore__eyebrow">Nuit sur Nordhaven</p>',
-      '<h3 class="mainmenu-lore__title">Un monde qui bouge sans toi</h3>',
-      '<p class="mainmenu-lore__text">Feux de camps, routes de guerre, quetes qui apparaissent, contrats qui disparaissent. Ici, revenir en ligne, c est revenir dans un monde vivant.</p>',
-      '<div class="mainmenu-lore__tags" aria-hidden="true">' +
-      '<span class="mainmenu-tag">Rumeurs dynamiques</span>' +
-      '<span class="mainmenu-tag">Quetes</span>' +
-      '<span class="mainmenu-tag">Progression</span>' +
-      "</div>" +
-      "</div>"
-    ].join("");
+    els.leftTitle.textContent = "";
+    els.centerTitle.textContent = "";
+    els.rightTitle.textContent = "";
+    els.left.innerHTML = "";
+    els.right.innerHTML = "";
 
     els.center.innerHTML = [
-      backdropHtml,
-      '<div class="mainmenu-portal">',
-      '<div class="mainmenu-portal__hero">',
-      '<p class="mainmenu-portal__kicker">Porte nord</p>',
-      '<h2 class="mainmenu-portal__title">Traverse le portail</h2>',
-      '<p class="mainmenu-portal__text">' +
+      '<section class="landing-menu">',
+      '<div class="landing-menu__bg"' + bgStyle + "></div>",
+      '<div class="landing-menu__veil" aria-hidden="true"></div>',
+      '<div class="landing-menu__content">',
+      '<p class="landing-menu__eyebrow">Nordhaven Chronicles</p>',
+      '<h2 class="landing-menu__title">Entre dans un monde vivant</h2>',
+      '<p class="landing-menu__lead">' +
         (hasLinkedCharacter
-          ? "Connexion Google detectee. Ton heros peut reprendre sa route immediatement."
-          : "Connecte-toi avec Google pour ouvrir ta chronique.") +
+          ? "Ton compte est reconnu. Le portail te ramene directement dans le monde."
+          : "Connecte-toi avec Google pour ouvrir ton destin dans le Nord.") +
       "</p>",
+      '<div class="landing-menu__google" id="menu-google-login"></div>',
+      '<p class="landing-menu__hint">Sans personnage: creation automatique. Avec personnage: retour direct en jeu.</p>',
+      '<div class="landing-menu__meta">' +
+      '<span>Connexion: ' + (authUser ? "Google active" : "Non connecte") + "</span>" +
       "</div>",
-      '<div class="mainmenu-portal__body">',
-      '<div class="mainmenu-portal__actions">',
-      '<div class="mainmenu-portal__google" id="menu-google-login"></div>',
-      (hasSave ? '<button type="button" class="btn mainmenu-portal__btn" id="menu-continue">Continuer hors-ligne</button>' : ""),
       "</div>",
-      '<p class="mainmenu-portal__hint">Au clic Google: sans personnage => creation, avec personnage => jeu direct.</p>',
-      "</div>",
-      "</div>"
+      "</section>"
     ].join("");
-
-    els.right.innerHTML = [
-      '<div class="mainmenu-presence">',
-      '<h4 class="mainmenu-presence__title">Etat de ta presence</h4>',
-      (hasSave
-        ? '<p class="mainmenu-presence__line"><strong>Heros :</strong> ' + escapeHtml(state.player.name) + '</p>' +
-          '<p class="mainmenu-presence__line"><strong>Niveau :</strong> ' + escapeHtml(String(state.player.level || 1)) + '</p>' +
-          '<p class="mainmenu-presence__line"><strong>Dernier lieu :</strong> ' + escapeHtml(state.currentVillage || "Nordhaven") + "</p>"
-        : '<p class="mainmenu-presence__line muted">Aucune chronique en memoire. Cree un heros pour commencer.</p>') +
-      '<p class="mainmenu-presence__line muted">Authentification Google active pour la creation et la synchronisation.</p>' +
-      "</div>"
-    ].join("");
-
-    els.center.querySelector("#menu-new").addEventListener("click", function () {
-      startFreshCharacterFlow();
-    });
-
-    var continueBtn = els.center.querySelector("#menu-continue");
-    if (continueBtn) {
-      continueBtn.addEventListener("click", function () {
-        setMode("village");
-      });
-    }
     window.dispatchEvent(new CustomEvent("nordhaven:menu-ready"));
   }
 
@@ -1844,6 +1840,11 @@
         notifHtml: showInnNotif ? '<span class="notif-dot" aria-hidden="true">!</span>' : ""
       }),
       villageNavButton({
+        id: "open-guild",
+        label: "Guilde",
+        slotKey: "inn"
+      }),
+      villageNavButton({
         id: "open-map",
         label: "Portail de la ville",
         slotKey: "map",
@@ -1853,7 +1854,7 @@
         notifHtml: needsQuestTravel ? '<span class="notif-dot" aria-hidden="true">!</span>' : ""
       }),
       "</div>",
-      '<p class="village-scene__hint muted">Inventaire, marchand, forge. Auberge : repos, mercenaire et quetes au comptoir. Le portail ouvre la carte du monde.</p>',
+      '<p class="village-scene__hint muted">Inventaire, marchand, forge, auberge et guilde. Le portail ouvre la carte du monde.</p>',
       "</div>"
     ].join("");
 
@@ -1881,6 +1882,7 @@
     });
     els.center.querySelector("#open-forge").addEventListener("click", openForgeDialog);
     els.center.querySelector("#open-inn").addEventListener("click", openInnDialog);
+    els.center.querySelector("#open-guild").addEventListener("click", openGuildDialog);
     els.center.querySelector("#open-map").addEventListener("click", function () {
       runZoneTransition("Ouverture du portail...", function () {
         setMode("map");
@@ -4060,9 +4062,7 @@
   function openInnDialog() {
     els.right.classList.remove("panel__body--merchant", "panel__body--shop");
     var nightCost = 18;
-    var hireCost = state.companion.hireCost || 45;
     var canRest = state.gold >= nightCost;
-    var canHire = !state.companion.hired && state.gold >= hireCost;
     var v = state.currentVillage;
 
     els.right.innerHTML =
@@ -4084,21 +4084,14 @@
       buildInnQuestSectionHtml() +
       "</section>" +
       '<section class="inn-section inn-section--rest" aria-label="Repos">' +
-      '<h4 class="inn-section__title">Chambre et compagnon</h4>' +
+      '<h4 class="inn-section__title">Chambre et salle de guilde</h4>' +
       '<p class="inn-rest-note muted">Le sommeil restaure toute ta vie et ta mana.</p>' +
       '<button type="button" class="btn inn-action-btn inn-action-btn--rest" id="rest-btn"' +
       (canRest ? "" : " disabled") +
       ">Dormir (" +
       nightCost +
       " septims)</button>" +
-      '<p class="inn-companion inn-companion--status muted">Compagnon : ' +
-      escapeHtml(companionStatusText()) +
-      "</p>" +
-      '<button type="button" class="btn btn--primary inn-action-btn inn-action-btn--hire" id="hire-btn"' +
-      (canHire ? "" : " disabled") +
-      ">Embaucher le mercenaire (" +
-      hireCost +
-      " or)</button>" +
+      '<p class="inn-companion inn-companion--status muted">Le systeme de compagnon est retire.</p>' +
       "</section>" +
       "</div>";
 
@@ -4134,7 +4127,6 @@
         state.gold -= nightCost;
         state.player.hp = state.player.hpMax;
         state.player.magie = state.player.magieMax;
-        if (state.companion.hired) state.companion.hp = state.companion.hpMax;
         log("Nuit a l'auberge: forces restaurees.");
         saveState();
         render();
@@ -4142,21 +4134,99 @@
       });
     }
 
-    var hireBtn = document.getElementById("hire-btn");
-    if (hireBtn) {
-      hireBtn.addEventListener("click", function () {
-        if (state.gold < hireCost) return;
-        if (state.companion.hired) return;
-        state.gold -= hireCost;
-        state.companion.hired = true;
-        state.companion.hpMax = 18 + Math.floor(state.player.level * 1.5);
-        state.companion.hp = state.companion.hpMax;
-        log("Compagnon embauche pour t'accompagner.");
-        saveState();
-        render();
-        openInnDialog();
-      });
+  }
+
+  function openGuildDialog() {
+    if (!authUser) {
+      showToast("Connexion Google requise pour la guilde.", true);
+      return;
     }
+    var roleText = guildState && guildState.role === "chief" ? "Chef de guilde" : "Membre";
+    var current = guildState && guildState.guild ? escapeHtml(guildState.guild.name) : "Aucune guilde";
+    var canCreate = state.gold >= 10;
+    var hasGuild = !!(guildState && guildState.guild);
+    var membersHtml = hasGuild && Array.isArray(guildState.guild.members)
+      ? guildState.guild.members.map(function (m) {
+          return '<li class="guild-ui__member"><span class="guild-ui__member-name">' + escapeHtml(m.name) + "</span><span class=\"guild-ui__member-role\">" + (m.role === "chief" ? "Chef" : "Membre") + "</span></li>";
+        }).join("")
+      : "";
+    els.skyuiRoot.innerHTML =
+      '<div class="skyui-overlay inv-overlay" role="dialog" aria-modal="true" aria-labelledby="guild-ui-title">' +
+      '<div class="skyui-window inv-window">' +
+      '<header class="skyui-header inv-window__header"><div class="inv-window__brand">' +
+      '<h2 class="inv-window__title" id="guild-ui-title">Guilde</h2>' +
+      '<p class="inv-window__subtitle">Chef et membres</p></div><span class="skyui-header__hint">Echap pour fermer</span></header>' +
+      '<div class="skyui-body inv-window__body guild-ui">' +
+      '<section class="guild-ui__card">' +
+      '<p class="guild-ui__current">Guilde actuelle: <strong>' + current + "</strong>" + (guildState ? " · " + roleText : "") + "</p>" +
+      "</section>" +
+      '<section class="guild-ui__card">' +
+      '<label class="label" for="guild-name-input">Nom de guilde</label>' +
+      '<input class="input" id="guild-name-input" maxlength="32" placeholder="Les Loups du Nord" />' +
+      '<div class="row row--tight"><button class="btn btn--primary" id="guild-create-btn"' + (canCreate ? "" : " disabled") + '>Creer (10 or)</button>' +
+      '<button class="btn" id="guild-join-btn">Rejoindre</button></div>' +
+      '<p class="muted">Tu rejoins une guilde par son nom exact.</p>' +
+      "</section>" +
+      (hasGuild
+        ? '<section class="guild-ui__card"><h4 class="guild-ui__members-title">Membres</h4><ul class="guild-ui__members">' + membersHtml + "</ul></section>"
+        : "") +
+      "</div>" +
+      '<footer class="skyui-footer inv-window__footer"><button type="button" class="btn skyui-close inv-window__close" id="guild-close-btn">Fermer</button></footer>' +
+      "</div></div>";
+    els.skyuiRoot.setAttribute("aria-hidden", "false");
+    document.body.classList.add("skyui-open");
+    var close = function () {
+      els.skyuiRoot.innerHTML = "";
+      els.skyuiRoot.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("skyui-open");
+      document.removeEventListener("keydown", onKey);
+    };
+    var onKey = function (e) {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKey);
+    els.skyuiRoot.querySelector(".skyui-overlay").addEventListener("click", function (e) {
+      if (e.target.classList.contains("skyui-overlay")) close();
+    });
+    document.getElementById("guild-close-btn").addEventListener("click", close);
+    var nameInput = document.getElementById("guild-name-input");
+    document.getElementById("guild-create-btn").addEventListener("click", function () {
+      var nm = (nameInput.value || "").trim();
+      if (nm.length < 3) return showToast("Nom de guilde trop court.", true);
+      if (state.gold < 10) return showToast("Il faut 10 or.", true);
+      apiJson("/api/guild/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nm })
+      })
+        .then(function (data) {
+          state.gold -= 10;
+          guildState = { guild: data.guild, role: data.role || "chief" };
+          saveState();
+          showToast("Guilde creee: " + data.guild.name + ".");
+          close();
+        })
+        .catch(function (err) {
+          showToast(err.message || "Creation impossible.", true);
+        });
+    });
+    document.getElementById("guild-join-btn").addEventListener("click", function () {
+      var nm = (nameInput.value || "").trim();
+      if (nm.length < 3) return showToast("Nom de guilde trop court.", true);
+      apiJson("/api/guild/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nm })
+      })
+        .then(function (data) {
+          guildState = { guild: data.guild, role: data.role || "member" };
+          showToast("Tu as rejoint " + data.guild.name + ".");
+          close();
+        })
+        .catch(function (err) {
+          showToast(err.message || "Rejoindre impossible.", true);
+        });
+    });
   }
 
   function companionStatusText() {
@@ -4283,7 +4353,8 @@
       .replace(/'/g, "&#39;");
   }
 
-  Promise.all([hydrateEditorDataFromServer(), hydrateCharacterFromAccount()]).then(function () {
+  Promise.all([hydrateEditorDataFromServer(), hydrateCharacterFromAccount(), loadMyGuildState()]).then(function () {
+    initEditorShortcutToggle();
     bindEditorUiSounds();
     render();
     queueProfileSnapshotSync();
@@ -4293,7 +4364,7 @@
     var user = event && event.detail ? event.detail.user : null;
     authUser = user || null;
     if (authUser) {
-      hydrateCharacterFromAccount().then(function () {
+      Promise.all([hydrateCharacterFromAccount(), loadMyGuildState()]).then(function () {
         if (authUser && authUser.hasCharacter) {
           if (state.player) setMode("village");
           else render();

@@ -86,7 +86,7 @@
     gateEnterBtn.disabled = !logged;
 
     if (logged) {
-      authPlayerEl.textContent = "Connecte avec Google: " + sanitize(state.me.name);
+      authPlayerEl.textContent = "";
       authStatusEl.textContent = "Vous discutez en tant que " + sanitize(state.me.name) + ".";
       messageInput.placeholder = "Ecrire un message...";
       gateStatusEl.textContent = "Connecte en tant que " + sanitize(state.me.name) + ".";
@@ -160,6 +160,10 @@
 
     var meta = document.createElement("div");
     meta.className = "mp-chat__meta";
+    var guildTag = document.createElement("strong");
+    guildTag.className = "mp-chat__guild";
+    guildTag.textContent = item && item.guildName ? "[" + sanitize(item.guildName) + "] " : "";
+
     var nameBtn = document.createElement("button");
     nameBtn.type = "button";
     nameBtn.className = "mp-chat__name";
@@ -176,6 +180,7 @@
     var when = document.createElement("span");
     when.className = "mp-chat__time";
     when.textContent = " · " + fmtTime(item.createdAt);
+    meta.appendChild(guildTag);
     meta.appendChild(nameBtn);
     meta.appendChild(when);
 
@@ -186,6 +191,37 @@
     row.appendChild(meta);
     row.appendChild(txt);
     messagesEl.appendChild(row);
+  }
+
+  function mountEmojiPicker() {
+    var compose = form.querySelector(".mp-chat__compose");
+    if (!compose) return;
+    if (form.querySelector(".mp-chat__emoji-toggle")) return;
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "mp-chat__emoji-toggle";
+    toggle.textContent = "🙂 Emojis";
+    var panel = document.createElement("div");
+    panel.className = "mp-chat__emoji-panel";
+    panel.hidden = true;
+    var picks = ["😀", "😄", "😉", "🙂", "😎", "🤔", "😈", "🥶", "🕯️", "⚔️", "🛡️", "✨", "🔥", "❄️", "🌙", "📜", "🏰", "🍻", "👑", "🐺", "🧙", "🧝", "🗡️", "💀"];
+    picks.forEach(function (emoji) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mp-chat__emoji-btn";
+      b.textContent = emoji;
+      b.addEventListener("click", function () {
+        messageInput.value = (messageInput.value ? messageInput.value + " " : "") + emoji + " ";
+        messageInput.focus();
+        panel.hidden = true;
+      });
+      panel.appendChild(b);
+    });
+    toggle.addEventListener("click", function () {
+      panel.hidden = !panel.hidden;
+    });
+    form.insertBefore(toggle, compose);
+    form.insertBefore(panel, compose);
   }
 
   function repaintMessages() {
@@ -266,6 +302,8 @@
     if (!window.__GOOGLE_CLIENT_ID__) {
       authStatusEl.textContent = "GOOGLE_CLIENT_ID non configure cote serveur.";
       gateStatusEl.textContent = "GOOGLE_CLIENT_ID non configure cote serveur.";
+      var hostNoId = document.getElementById("menu-google-login");
+      if (hostNoId) hostNoId.innerHTML = '<div class="mainmenu-portal__google-wait muted">Google non configure sur le serveur.</div>';
       return true;
     }
 
@@ -387,9 +425,13 @@
   window.addEventListener("nordhaven:menu-ready", function () {
     renderMenuGoogleButton();
   });
+  setInterval(function () {
+    if (!state.me) renderMenuGoogleButton();
+  }, 1200);
 
   setAuthUi();
   waitGoogleInit();
+  mountEmojiPicker();
   loadSession().then(function () {
     loadMessages();
     connectSocket();

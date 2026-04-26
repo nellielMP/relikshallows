@@ -39,6 +39,7 @@ const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, "data");
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 const CHAT_PATH = path.join(DATA_DIR, "chat-messages.json");
+const GUILDS_PATH = path.join(DATA_DIR, "guilds.json");
 const EDITOR_CONFIG_PATH = path.join(DATA_DIR, "editor-config.json");
 const EDITOR_STORAGE_KEYS = [
   "nordhaven-editor-weapons-v1",
@@ -91,6 +92,11 @@ async function ensureDataFiles() {
     await fs.access(EDITOR_CONFIG_PATH);
   } catch (_) {
     await fs.writeFile(EDITOR_CONFIG_PATH, JSON.stringify({ data: {}, updatedAt: Date.now() }, null, 2), "utf-8");
+  }
+  try {
+    await fs.access(GUILDS_PATH);
+  } catch (_) {
+    await fs.writeFile(GUILDS_PATH, "[]", "utf-8");
   }
 }
 
@@ -173,11 +179,13 @@ async function appendChatMessage(user, text, characterName) {
   const cleanCharacterName = sanitizeText(characterName, 40);
   const displayName = cleanCharacterName || sanitizeText(user.name, 40) || "Joueur";
 
+  const guildName = await getGuildNameForUser(user.id);
   const messages = await readJson(CHAT_PATH, []);
   const payload = {
     id: crypto.randomBytes(10).toString("hex"),
     userId: user.id,
     name: displayName,
+    guildName: guildName,
     avatarUrl: sanitizeText(user.avatarUrl || "", 500),
     text: cleanText,
     createdAt: Date.now()
@@ -186,6 +194,16 @@ async function appendChatMessage(user, text, characterName) {
   const trimmed = messages.slice(-200);
   await writeJson(CHAT_PATH, trimmed);
   return payload;
+}
+
+async function getGuildNameForUser(userId) {
+  if (!userId) return "";
+  const users = await readJson(USERS_PATH, []);
+  const user = users.find((u) => u.id === userId);
+  if (!user || !user.guildId) return "";
+  const guilds = await readJson(GUILDS_PATH, []);
+  const g = guilds.find((x) => x.id === user.guildId);
+  return g ? sanitizeText(g.name, 40) : "";
 }
 
 async function getChatMessages(limit) {
@@ -212,7 +230,8 @@ function publicUser(user) {
     name: user.name,
     email: user.email,
     avatarUrl: user.avatarUrl,
-    hasCharacter: !!(user && user.character)
+    hasCharacter: !!(user && user.character),
+    guildId: user && user.guildId ? user.guildId : null
   };
 }
 
@@ -405,6 +424,83 @@ app.get("/api/profile/:userId", async (req, res) => {
   const user = await getUserById(userId);
   if (!user) return res.status(404).json({ error: "Profil introuvable" });
   return res.json({ profile: buildPublicProfileFromUser(user) });
+});
+
+app.get("/api/guild/me", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  const guilds = await readJson(GUILDS_PATH, []);
+  if (!user.guildId) return res.json({ guild: null, role: null });
+  const guild = guilds.find((g) => g.id === user.guildId);
+  if (!guild) return res.json({ guild: null, role: null });
+  const users = await readJson(USERS_PATH, []);
+  const members = (guild.memberUserIds || []).map((uid) => {
+    const u = users.find((x) => x.id === uid);
+    return {
+      userId: uid,
+      name: sanitizeText((u && u.character && u.character.name) || (u && u.name) || "Joueur", 40),
+      role: guild.chiefUserId === uid ? "chief" : "member"
+    };
+  });
+  const role = guild.chiefUserId === user.id ? "chief" : "member";
+  return res.json({ guild: { id: guild.id, name: guild.name, members }, role });
+});
+
+app.post("/api/guild/create", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  const name = sanitizeText(req.body && req.body.name, 32);
+  if (!name || name.length < 3) return res.status(400).json({ error: "Nom de guilde invalide" });
+
+  const users = await readJson(USERS_PATH, []);
+  const userIdx = users.findIndex((u) => u.id === user.id);
+  if (userIdx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+  if (users[userIdx].guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
+
+  const guilds = await readJson(GUILDS_PATH, []);
+  if (guilds.some((g) => String(g.name).toLowerCase() === String(name).toLowerCase())) {
+    return res.status(409).json({ error: "Ce nom de guilde existe deja" });
+  }
+
+  const now = Date.now();
+  const guild = {
+    id: crypto.randomBytes(10).toString("hex"),
+    name: name,
+    chiefUserId: user.id,
+    memberUserIds: [user.id],
+    createdAt: now,
+    updatedAt: now
+  };
+  guilds.push(guild);
+  users[userIdx].guildId = guild.id;
+  users[userIdx].updatedAt = now;
+  await writeJson(GUILDS_PATH, guilds);
+  await writeJson(USERS_PATH, users);
+  return res.status(201).json({ guild: { id: guild.id, name: guild.name }, role: "chief" });
+});
+
+app.post("/api/guild/join", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  const name = sanitizeText(req.body && req.body.name, 32);
+  if (!name || name.length < 3) return res.status(400).json({ error: "Nom de guilde invalide" });
+
+  const users = await readJson(USERS_PATH, []);
+  const userIdx = users.findIndex((u) => u.id === user.id);
+  if (userIdx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+  if (users[userIdx].guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
+
+  const guilds = await readJson(GUILDS_PATH, []);
+  const guild = guilds.find((g) => String(g.name).toLowerCase() === String(name).toLowerCase());
+  if (!guild) return res.status(404).json({ error: "Guilde introuvable" });
+  if (!Array.isArray(guild.memberUserIds)) guild.memberUserIds = [];
+  if (!guild.memberUserIds.includes(user.id)) guild.memberUserIds.push(user.id);
+  guild.updatedAt = Date.now();
+  users[userIdx].guildId = guild.id;
+  users[userIdx].updatedAt = Date.now();
+  await writeJson(GUILDS_PATH, guilds);
+  await writeJson(USERS_PATH, users);
+  return res.json({ guild: { id: guild.id, name: guild.name }, role: guild.chiefUserId === user.id ? "chief" : "member" });
 });
 
 app.post("/api/logout", (req, res) => {
