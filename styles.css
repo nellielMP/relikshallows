@@ -601,6 +601,96 @@ body {
   background: linear-gradient(160deg, rgba(30, 27, 22, 0.9), rgba(11, 10, 8, 0.95));
 }
 
+/* Accueil nouveau joueur */
+.onboarding-card,
+.onboarding-hero,
+.onboarding-help {
+  border: 1px solid #635641;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(204, 157, 84, 0.14), rgba(0, 0, 0, 0) 52%),
+    linear-gradient(165deg, rgba(35, 30, 24, 0.92), rgba(12, 10, 8, 0.96));
+}
+
+.onboarding-card__eyebrow {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #978a74;
+}
+
+.onboarding-card__title,
+.onboarding-hero__title {
+  margin: 0.2rem 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #efe4cf;
+}
+
+.onboarding-card__text {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+  color: #c4b89f;
+}
+
+.onboarding-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+.onboarding-badge {
+  display: inline-block;
+  border: 1px solid rgba(96, 84, 66, 0.9);
+  border-radius: 999px;
+  padding: 0.08rem 0.42rem;
+  font-size: 0.7rem;
+  color: #b8ae9a;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.onboarding-hero__kicker {
+  margin: 0 0 0.3rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9c8b6f;
+}
+
+.onboarding-hero__lead {
+  margin: 0.45rem 0 0.8rem;
+  color: #b8ae9a;
+  line-height: 1.45;
+}
+
+.onboarding-hero__start,
+.onboarding-hero__secondary {
+  width: 100%;
+}
+
+.onboarding-hero__secondary {
+  margin-top: 0.45rem;
+}
+
+.onboarding-help__title {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8f8575;
+}
+
+.onboarding-help__list {
+  margin: 0.55rem 0 0;
+  padding-left: 1rem;
+  color: #c4b89f;
+  line-height: 1.5;
+}
+
+.onboarding-help__foot {
+  margin: 0.6rem 0 0;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

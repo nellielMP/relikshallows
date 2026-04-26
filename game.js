@@ -1388,8 +1388,10 @@
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
     applyDefaultCursor();
+    if (state.mode === "onboarding") return renderOnboarding();
+    if (!state.player && state.mode !== "creation") return renderOnboarding();
     if (state.mode === "menu") return renderMainMenu();
-    if (state.mode === "creation" || !state.player) return renderCreation();
+    if (state.mode === "creation") return renderCreation();
     if (state.mode === "village") return renderVillage();
     if (state.mode === "map") return renderWorldMap();
     if (state.mode === "combat") return renderCombat();
@@ -1418,6 +1420,66 @@
     state.log = ["Le vent froid traverse les palissades de Nordhaven..."];
     saveState();
     render();
+  }
+
+  function renderOnboarding() {
+    els.location.textContent = "Bienvenue";
+    els.leftTitle.textContent = "Univers";
+    els.centerTitle.textContent = "Nouveau joueur";
+    els.rightTitle.textContent = "Comment jouer";
+
+    els.left.innerHTML = [
+      '<div class="onboarding-card card">',
+      '<p class="onboarding-card__eyebrow">Nordhaven Chronicles</p>',
+      '<h3 class="onboarding-card__title">Un RPG narratif en navigateur</h3>',
+      '<p class="onboarding-card__text">Explore les villages du Nord, accepte des quetes, combat des creatures et fais progresser ton heros.</p>',
+      '<div class="onboarding-badges" aria-hidden="true">',
+      '<span class="onboarding-badge">Exploration</span>',
+      '<span class="onboarding-badge">Combat</span>',
+      '<span class="onboarding-badge">Loot</span>',
+      '<span class="onboarding-badge">Progression</span>',
+      "</div>",
+      "</div>"
+    ].join("");
+
+    els.center.innerHTML = [
+      '<div class="onboarding-hero card">',
+      '<p class="onboarding-hero__kicker">Premiere partie</p>',
+      '<h2 class="onboarding-hero__title">Pret a forger ton personnage ?</h2>',
+      '<p class="onboarding-hero__lead">Choisis un nom, une race et une classe. En moins de 2 minutes, tu peux commencer l\'aventure.</p>',
+      '<button type="button" class="btn btn--primary onboarding-hero__start" id="onboarding-start">Commencer</button>',
+      '<button type="button" class="btn onboarding-hero__secondary" id="onboarding-existing">J\'ai deja une sauvegarde</button>',
+      "</div>"
+    ].join("");
+
+    els.right.innerHTML = [
+      '<div class="onboarding-help card">',
+      '<h4 class="onboarding-help__title">Deroulement rapide</h4>',
+      '<ol class="onboarding-help__list">',
+      "<li>Creation du personnage</li>",
+      "<li>Arrivee au village de Nordhaven</li>",
+      "<li>Premiers achats et quetes</li>",
+      "<li>Combat et progression du niveau</li>",
+      "</ol>",
+      '<p class="onboarding-help__foot muted">Tu pourras reprendre ta partie plus tard automatiquement.</p>',
+      "</div>"
+    ].join("");
+
+    var startBtn = els.center.querySelector("#onboarding-start");
+    if (startBtn) {
+      startBtn.addEventListener("click", function () {
+        startFreshCharacterFlow();
+      });
+    }
+
+    var existingBtn = els.center.querySelector("#onboarding-existing");
+    if (existingBtn) {
+      existingBtn.addEventListener("click", function () {
+        state.mode = "menu";
+        saveState();
+        renderMainMenu();
+      });
+    }
   }
 
   function renderMainMenu() {
