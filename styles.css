@@ -162,6 +162,13 @@ body {
   max-width: 22rem;
 }
 
+.topbar__resources {
+  margin: 0.32rem 0 0;
+  font-size: 0.82rem;
+  color: #d8c8a7;
+  font-variant-numeric: tabular-nums;
+}
+
 .topbar__tools {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
@@ -3013,7 +3020,7 @@ body.skyui-open {
   grid-column: 1 / -1;
   grid-row: 2;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem;
   padding-top: 0.15rem;
 }
@@ -4959,7 +4966,7 @@ body.skyui-open {
 
 .mainmenu-portal__actions {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .mainmenu-portal__btn {
@@ -4970,6 +4977,26 @@ body.skyui-open {
   margin: 0.12rem 0 0;
   font-size: 0.82rem;
   color: #a99f8e;
+}
+
+.mainmenu-portal__google {
+  min-height: 2.8rem;
+  display: flex;
+  align-items: center;
+}
+
+.mainmenu-portal__google-ok {
+  width: 100%;
+  border: 1px solid #5e6d47;
+  border-radius: 5px;
+  padding: 0.5rem 0.55rem;
+  background: rgba(34, 52, 26, 0.3);
+  color: #d7e6bf;
+  font-size: 0.86rem;
+}
+
+.mainmenu-portal__google-wait {
+  font-size: 0.84rem;
 }
 
 .mainmenu-lore--fresh {

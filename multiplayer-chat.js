@@ -52,6 +52,7 @@
     messages: []
   };
   var gateDismissed = localStorage.getItem("nordhaven-gate-dismissed") === "1";
+  var googleReady = false;
 
   var socket = null;
 
@@ -97,8 +98,9 @@
       authStatusEl.textContent = "Connectez-vous avec Google pour discuter.";
       messageInput.placeholder = "Connexion Google requise";
       gateStatusEl.textContent = "Connexion requise.";
-      if (!gateDismissed) gateRoot.classList.add("gate--open");
+      gateRoot.classList.remove("gate--open");
     }
+    renderMenuGoogleButton();
     window.dispatchEvent(
       new CustomEvent("nordhaven:auth-changed", {
         detail: { user: state.me || null }
@@ -276,15 +278,30 @@
         });
       }
     });
+    googleReady = true;
+    renderMenuGoogleButton();
+    return true;
+  }
 
-    window.google.accounts.id.renderButton(gateGoogleButtonHost, {
+  function renderMenuGoogleButton() {
+    var host = document.getElementById("menu-google-login");
+    if (!host) return;
+    if (state.me) {
+      host.innerHTML = '<div class="mainmenu-portal__google-ok">Connecte en tant que ' + sanitize(state.me.name) + ".</div>";
+      return;
+    }
+    if (!googleReady || !window.google || !window.google.accounts || !window.google.accounts.id) {
+      host.innerHTML = '<div class="mainmenu-portal__google-wait muted">Chargement Google...</div>';
+      return;
+    }
+    host.innerHTML = "";
+    window.google.accounts.id.renderButton(host, {
       theme: "filled_black",
       size: "large",
       shape: "pill",
       text: "signin_with",
-      width: 290
+      width: 300
     });
-    return true;
   }
 
   function waitGoogleInit() {
@@ -366,6 +383,9 @@
   profilePeekClose.addEventListener("click", closeProfilePeek);
   profilePeekRoot.addEventListener("click", function (event) {
     if (event.target === profilePeekRoot) closeProfilePeek();
+  });
+  window.addEventListener("nordhaven:menu-ready", function () {
+    renderMenuGoogleButton();
   });
 
   setAuthUi();

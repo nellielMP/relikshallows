@@ -1002,10 +1002,6 @@
       '<p class="hero-sheet__race">' + escapeHtml(rInfo.label) + "</p>",
       "</div>",
       '<div class="hero-sheet__head-tools">' +
-      '<div class="hero-sheet__purse" title="' + state.gold + ' septims">' +
-      goldIconInlineHtml() +
-      '<span class="hero-sheet__purse-val">' + state.gold + "</span>" +
-      "</div>" +
       '<button type="button" class="hero-sheet__skills-btn" id="open-skills-btn">Competences</button>' +
       "</div>" +
       "</div>" +
@@ -1039,19 +1035,6 @@
       "</div>" +
       '<div class="hero-micro-track hero-micro-track--mp"><span style="width:' +
       pct(player.magie, player.magieMax) +
-      '%"></span></div>' +
-      "</div>" +
-      '<div class="hero-micro-block">' +
-      '<div class="hero-micro-block__head">' +
-      '<span class="hero-micro-block__label">XP</span>' +
-      '<span class="hero-micro-block__nums">' +
-      Math.floor(player.xp) +
-      " / " +
-      Math.floor(player.xpToNext) +
-      "</span>" +
-      "</div>" +
-      '<div class="hero-micro-track hero-micro-track--xp"><span style="width:' +
-      pct(player.xp, player.xpToNext) +
       '%"></span></div>' +
       "</div>" +
       "</div>" +
@@ -1240,9 +1223,25 @@
     left: document.getElementById("left-content"),
     center: document.getElementById("center-content"),
     right: document.getElementById("right-content"),
+    topbarResources: document.getElementById("topbar-resources"),
     toast: document.getElementById("toast"),
     skyuiRoot: document.getElementById("skyui-root")
   };
+
+  function renderTopbarResources() {
+    if (!els.topbarResources) return;
+    if (!state.player) {
+      els.topbarResources.textContent = "";
+      return;
+    }
+    els.topbarResources.textContent =
+      "Or " +
+      String(state.gold) +
+      " · XP " +
+      String(Math.floor(state.player.xp || 0)) +
+      "/" +
+      String(Math.floor(state.player.xpToNext || 0));
+  }
 
   function makeInitialState() {
     return {
@@ -1440,6 +1439,7 @@
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
     applyDefaultCursor();
+    renderTopbarResources();
     if (state.mode === "menu") return renderMainMenu();
     if (state.mode === "creation") return renderCreation();
     if (state.mode === "village") return renderVillage();
@@ -1539,7 +1539,7 @@
     var backdropHtml = isDataUrlIcon(nordhavenArt)
       ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
       : '<div class="mainmenu-backdrop mainmenu-backdrop--fallback" aria-hidden="true"></div>';
-    els.location.textContent = "Avant-poste";
+    els.location.textContent = "Porte du Nord";
     els.leftTitle.textContent = "Chronique";
     els.centerTitle.textContent = "Menu principal";
     els.rightTitle.textContent = "Presence";
@@ -1547,10 +1547,10 @@
     els.left.innerHTML = [
       '<div class="mainmenu-lore card mainmenu-lore--fresh">',
       '<p class="mainmenu-lore__eyebrow">Nuit sur Nordhaven</p>',
-      '<h3 class="mainmenu-lore__title">Un monde qui respire</h3>',
-      '<p class="mainmenu-lore__text">Le vent change, les rumeurs tournent, les routes restent dangereuses. Chaque connexion est une nouvelle page de ta chronique.</p>',
+      '<h3 class="mainmenu-lore__title">Un monde qui bouge sans toi</h3>',
+      '<p class="mainmenu-lore__text">Feux de camps, routes de guerre, quetes qui apparaissent, contrats qui disparaissent. Ici, revenir en ligne, c est revenir dans un monde vivant.</p>',
       '<div class="mainmenu-lore__tags" aria-hidden="true">' +
-      '<span class="mainmenu-tag">Villages vivants</span>' +
+      '<span class="mainmenu-tag">Rumeurs dynamiques</span>' +
       '<span class="mainmenu-tag">Quetes</span>' +
       '<span class="mainmenu-tag">Progression</span>' +
       "</div>" +
@@ -1562,19 +1562,19 @@
       '<div class="mainmenu-portal">',
       '<div class="mainmenu-portal__hero">',
       '<p class="mainmenu-portal__kicker">Porte nord</p>',
-      '<h2 class="mainmenu-portal__title">Entre dans un monde en mouvement</h2>',
+      '<h2 class="mainmenu-portal__title">Traverse le portail</h2>',
       '<p class="mainmenu-portal__text">' +
         (hasLinkedCharacter
-          ? "Ton compte Google est deja lie a un heros. Le portail est pret, il attend ton retour."
-          : "Connecte avec Google puis forge un heros pour entrer dans le monde.") +
+          ? "Connexion Google detectee. Ton heros peut reprendre sa route immediatement."
+          : "Connecte-toi avec Google pour ouvrir ta chronique.") +
       "</p>",
       "</div>",
       '<div class="mainmenu-portal__body">',
       '<div class="mainmenu-portal__actions">',
-      '<button type="button" class="btn btn--primary mainmenu-portal__btn" id="menu-new"' + (hasLinkedCharacter ? " disabled" : "") + '>Nouvelle creation de personnage</button>',
-      (hasSave ? '<button type="button" class="btn mainmenu-portal__btn" id="menu-continue">Reprendre la chronique</button>' : ""),
+      '<div class="mainmenu-portal__google" id="menu-google-login"></div>',
+      (hasSave ? '<button type="button" class="btn mainmenu-portal__btn" id="menu-continue">Continuer hors-ligne</button>' : ""),
       "</div>",
-      '<p class="mainmenu-portal__hint">Le portail ne s ouvre qu aux joueurs connectes avec Google.</p>',
+      '<p class="mainmenu-portal__hint">Au clic Google: sans personnage => creation, avec personnage => jeu direct.</p>',
       "</div>",
       "</div>"
     ].join("");
@@ -1601,6 +1601,7 @@
         setMode("village");
       });
     }
+    window.dispatchEvent(new CustomEvent("nordhaven:menu-ready"));
   }
 
   function formatRaceBonusLine(r) {
@@ -4291,14 +4292,19 @@
   window.addEventListener("nordhaven:auth-changed", function (event) {
     var user = event && event.detail ? event.detail.user : null;
     authUser = user || null;
-    if (authUser && !state.player) {
+    if (authUser) {
       hydrateCharacterFromAccount().then(function () {
-        render();
+        if (authUser && authUser.hasCharacter) {
+          if (state.player) setMode("village");
+          else render();
+        } else {
+          setMode("creation");
+        }
         queueProfileSnapshotSync();
       });
       return;
     }
-    if (state.mode === "menu" || state.mode === "creation") render();
+    if (state.mode === "menu" || state.mode === "creation" || state.mode === "village") render();
     queueProfileSnapshotSync();
   });
 })();
