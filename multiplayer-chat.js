@@ -21,6 +21,7 @@
   var authConnectedEl = document.getElementById("authbar-connected");
   var authPlayerEl = document.getElementById("authbar-player");
   var logoutBtn = document.getElementById("authbar-logout");
+  var adminLink = document.getElementById("admin-link");
   var profilePeekRoot = document.getElementById("player-peek");
   var profilePeekBody = document.getElementById("player-peek-body");
   var profilePeekClose = document.getElementById("player-peek-close");
@@ -49,7 +50,8 @@
 
   var state = {
     me: null,
-    messages: []
+    messages: [],
+    isAdmin: false
   };
   var gateDismissed = localStorage.getItem("nordhaven-gate-dismissed") === "1";
   var googleReady = false;
@@ -101,6 +103,7 @@
       gateRoot.classList.remove("gate--open");
     }
     renderMenuGoogleButton();
+    if (adminLink) adminLink.hidden = !state.isAdmin;
     window.dispatchEvent(
       new CustomEvent("nordhaven:auth-changed", {
         detail: { user: state.me || null }
@@ -252,6 +255,17 @@
     setAuthUi();
   }
 
+  async function refreshAdminStatus() {
+    state.isAdmin = false;
+    try {
+      var data = await api("/api/admin/me");
+      state.isAdmin = !!(data && data.admin);
+    } catch (_) {
+      state.isAdmin = false;
+    }
+    if (adminLink) adminLink.hidden = !state.isAdmin;
+  }
+
   async function loadMessages() {
     try {
       var data = await api("/api/chat/messages?limit=" + MAX_MESSAGES);
@@ -283,6 +297,7 @@
       body: JSON.stringify({ idToken: idToken })
     });
     await loadSession();
+    await refreshAdminStatus();
     await loadMessages();
     if (socket) {
       socket.disconnect();
@@ -294,6 +309,7 @@
   async function logout() {
     await api("/api/logout", { method: "POST" });
     state.me = null;
+    state.isAdmin = false;
     setAuthUi();
   }
 
@@ -434,6 +450,7 @@
   waitGoogleInit();
   mountEmojiPicker();
   loadSession().then(function () {
+    refreshAdminStatus();
     loadMessages();
     connectSocket();
   });

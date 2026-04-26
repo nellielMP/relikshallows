@@ -195,7 +195,7 @@
       var o = raw ? JSON.parse(raw) : null;
       if (!o || typeof o !== "object") return {};
       var out = {};
-      ["inventory", "shop", "forge", "inn", "map", "gold"].forEach(function (k) {
+      ["inventory", "shop", "forge", "inn", "guild", "arena", "map", "gold"].forEach(function (k) {
         if (isDataUrlIcon(o[k])) out[k] = o[k];
       });
       return out;
@@ -1851,12 +1851,12 @@
       villageNavButton({
         id: "open-guild",
         label: "Guilde",
-        slotKey: "inn"
+        slotKey: "guild"
       }),
       villageNavButton({
         id: "open-arena",
         label: "Arene",
-        slotKey: "map"
+        slotKey: "arena"
       }),
       villageNavButton({
         id: "open-map",

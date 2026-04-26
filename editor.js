@@ -24,7 +24,7 @@
   var MAX_ICON_BYTES = 700 * 1024;
   var MAX_SOUND_BYTES = 500 * 1024;
   var SOUND_KEYS = ["buttonClick", "villageButton", "equip", "unequip"];
-  var NAV_ICON_KEYS = ["inventory", "shop", "forge", "inn", "map", "gold"];
+  var NAV_ICON_KEYS = ["inventory", "shop", "forge", "inn", "guild", "arena", "map", "gold"];
   var CURSOR_KEYS = ["default", "inventory", "shop", "forge", "inn", "map"];
   var VILLAGE_ART_KEYS = ["Nordhaven", "Corberoc", "Fort-Aube"];
   var SKILL_EDITOR_DEFS = [

@@ -7,14 +7,13 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const { OAuth2Client } = require("google-auth-library");
 const { Server } = require("socket.io");
+const { MongoClient } = require("mongodb");
 
 function loadDotEnvFile() {
   const candidateFiles = [".env", "server_token.env"];
-
   candidateFiles.forEach((fileName) => {
     const envPath = path.join(__dirname, fileName);
     if (!fsSync.existsSync(envPath)) return;
-
     const raw = fsSync.readFileSync(envPath, "utf-8");
     raw.split(/\r?\n/).forEach((line) => {
       const trimmed = line.trim();
@@ -34,6 +33,14 @@ loadDotEnvFile();
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_COOKIE = "nordhaven_sid";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const MONGODB_URI = process.env.MONGODB_URI || "";
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "nordhaven";
+const ADMIN_GOOGLE_EMAILS = new Set(
+  String(process.env.ADMIN_GOOGLE_EMAILS || "")
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, "data");
@@ -60,6 +67,7 @@ const EDITOR_STORAGE_KEYS = [
 
 const sessions = new Map();
 const googleClient = new OAuth2Client();
+let db = null;
 
 const app = express();
 const server = http.createServer(app);
@@ -68,6 +76,19 @@ const io = new Server(server);
 app.use(express.json({ limit: "8mb" }));
 app.use(cookieParser());
 app.use(express.static(ROOT_DIR));
+
+function usersCol() {
+  return db.collection("users");
+}
+function guildsCol() {
+  return db.collection("guilds");
+}
+function chatCol() {
+  return db.collection("chatMessages");
+}
+function editorConfigCol() {
+  return db.collection("editorConfig");
+}
 
 function sanitizeText(value, maxLen) {
   return String(value || "")
@@ -109,8 +130,77 @@ async function readJson(filePath, fallback) {
   }
 }
 
-async function writeJson(filePath, value) {
-  await fs.writeFile(filePath, JSON.stringify(value, null, 2), "utf-8");
+async function connectMongo() {
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI manquant");
+  }
+  const client = new MongoClient(MONGODB_URI);
+  await client.connect();
+  db = client.db(MONGODB_DB_NAME);
+  await usersCol().createIndex({ id: 1 }, { unique: true });
+  await usersCol().createIndex({ googleId: 1 }, { unique: true });
+  await guildsCol().createIndex({ id: 1 }, { unique: true });
+  await guildsCol().createIndex({ nameLower: 1 }, { unique: true });
+  await chatCol().createIndex({ id: 1 }, { unique: true });
+  await chatCol().createIndex({ createdAt: -1 });
+}
+
+async function migrateJsonToMongoIfNeeded() {
+  const usersCount = await usersCol().estimatedDocumentCount();
+  const guildsCount = await guildsCol().estimatedDocumentCount();
+  const chatCount = await chatCol().estimatedDocumentCount();
+  const editorCount = await editorConfigCol().estimatedDocumentCount();
+  const shouldMigrate = usersCount === 0 && guildsCount === 0 && chatCount === 0 && editorCount === 0;
+  if (!shouldMigrate) return;
+
+  const users = await readJson(USERS_PATH, []);
+  const guilds = await readJson(GUILDS_PATH, []);
+  const chatMessages = await readJson(CHAT_PATH, []);
+  const editorConfig = await readJson(EDITOR_CONFIG_PATH, { data: {}, updatedAt: Date.now() });
+
+  for (const user of Array.isArray(users) ? users : []) {
+    if (!user || !user.id) continue;
+    const doc = { ...user, id: String(user.id) };
+    await usersCol().updateOne({ id: doc.id }, { $set: doc }, { upsert: true });
+  }
+  for (const guild of Array.isArray(guilds) ? guilds : []) {
+    if (!guild || !guild.id) continue;
+    const name = sanitizeText(guild.name || "", 32);
+    const doc = {
+      ...guild,
+      id: String(guild.id),
+      name,
+      nameLower: name.toLowerCase(),
+      memberUserIds: Array.isArray(guild.memberUserIds) ? guild.memberUserIds.map((x) => String(x)) : []
+    };
+    await guildsCol().updateOne({ id: doc.id }, { $set: doc }, { upsert: true });
+  }
+  for (const msg of Array.isArray(chatMessages) ? chatMessages : []) {
+    if (!msg || !msg.id) continue;
+    const doc = {
+      ...msg,
+      id: String(msg.id),
+      userId: sanitizeText(msg.userId || "", 64),
+      name: sanitizeText(msg.name || "", 40),
+      guildName: sanitizeText(msg.guildName || "", 40),
+      avatarUrl: sanitizeText(msg.avatarUrl || "", 500),
+      text: sanitizeText(msg.text || "", 220),
+      createdAt: Number(msg.createdAt) || Date.now()
+    };
+    await chatCol().updateOne({ id: doc.id }, { $set: doc }, { upsert: true });
+  }
+  await editorConfigCol().updateOne(
+    { id: "main" },
+    {
+      $set: {
+        id: "main",
+        data: sanitizeEditorConfigPayload(editorConfig && editorConfig.data),
+        updatedAt: Number(editorConfig && editorConfig.updatedAt) || Date.now()
+      }
+    },
+    { upsert: true }
+  );
+  console.log("Mongo migration imported JSON seed data.");
 }
 
 function issueSession(res, userId) {
@@ -140,19 +230,16 @@ function getSessionUserId(req) {
 
 async function getUserById(id) {
   if (!id) return null;
-  const users = await readJson(USERS_PATH, []);
-  return users.find((u) => u.id === id) || null;
+  return usersCol().findOne({ id: String(id) });
 }
 
 async function upsertGoogleUser(googlePayload) {
-  const users = await readJson(USERS_PATH, []);
   const googleId = String(googlePayload.sub || "");
   if (!googleId) throw new Error("Token Google invalide");
-
   const now = Date.now();
-  let user = users.find((u) => u.googleId === googleId);
-  if (!user) {
-    user = {
+  const existing = await usersCol().findOne({ googleId });
+  if (!existing) {
+    const user = {
       id: crypto.randomBytes(12).toString("hex"),
       googleId,
       email: sanitizeText(googlePayload.email || "", 120),
@@ -161,16 +248,29 @@ async function upsertGoogleUser(googlePayload) {
       createdAt: now,
       updatedAt: now
     };
-    users.push(user);
-  } else {
-    user.email = sanitizeText(googlePayload.email || user.email || "", 120);
-    user.name = sanitizeText(googlePayload.name || user.name || "Joueur", 40) || "Joueur";
-    user.avatarUrl = sanitizeText(googlePayload.picture || user.avatarUrl || "", 500);
-    user.updatedAt = now;
+    await usersCol().insertOne(user);
+    return user;
   }
+  await usersCol().updateOne(
+    { id: existing.id },
+    {
+      $set: {
+        email: sanitizeText(googlePayload.email || existing.email || "", 120),
+        name: sanitizeText(googlePayload.name || existing.name || "Joueur", 40) || "Joueur",
+        avatarUrl: sanitizeText(googlePayload.picture || existing.avatarUrl || "", 500),
+        updatedAt: now
+      }
+    }
+  );
+  return usersCol().findOne({ id: existing.id });
+}
 
-  await writeJson(USERS_PATH, users);
-  return user;
+async function getGuildNameForUser(userId) {
+  if (!userId) return "";
+  const user = await getUserById(userId);
+  if (!user || !user.guildId) return "";
+  const guild = await guildsCol().findOne({ id: String(user.guildId) });
+  return guild ? sanitizeText(guild.name, 40) : "";
 }
 
 async function appendChatMessage(user, text, characterName) {
@@ -178,38 +278,31 @@ async function appendChatMessage(user, text, characterName) {
   if (!cleanText) return null;
   const cleanCharacterName = sanitizeText(characterName, 40);
   const displayName = cleanCharacterName || sanitizeText(user.name, 40) || "Joueur";
-
   const guildName = await getGuildNameForUser(user.id);
-  const messages = await readJson(CHAT_PATH, []);
   const payload = {
     id: crypto.randomBytes(10).toString("hex"),
     userId: user.id,
     name: displayName,
-    guildName: guildName,
+    guildName,
     avatarUrl: sanitizeText(user.avatarUrl || "", 500),
     text: cleanText,
     createdAt: Date.now()
   };
-  messages.push(payload);
-  const trimmed = messages.slice(-200);
-  await writeJson(CHAT_PATH, trimmed);
+  await chatCol().insertOne(payload);
+  const total = await chatCol().estimatedDocumentCount();
+  if (total > 240) {
+    const old = await chatCol().find({}).sort({ createdAt: 1 }).limit(total - 200).project({ id: 1 }).toArray();
+    if (old.length) {
+      await chatCol().deleteMany({ id: { $in: old.map((x) => x.id) } });
+    }
+  }
   return payload;
-}
-
-async function getGuildNameForUser(userId) {
-  if (!userId) return "";
-  const users = await readJson(USERS_PATH, []);
-  const user = users.find((u) => u.id === userId);
-  if (!user || !user.guildId) return "";
-  const guilds = await readJson(GUILDS_PATH, []);
-  const g = guilds.find((x) => x.id === user.guildId);
-  return g ? sanitizeText(g.name, 40) : "";
 }
 
 async function getChatMessages(limit) {
   const safeLimit = Math.max(1, Math.min(Number(limit) || 80, 200));
-  const messages = await readJson(CHAT_PATH, []);
-  return messages.slice(-safeLimit);
+  const messages = await chatCol().find({}).sort({ createdAt: -1 }).limit(safeLimit).toArray();
+  return messages.reverse();
 }
 
 function cookieToSid(cookieHeader) {
@@ -217,9 +310,7 @@ function cookieToSid(cookieHeader) {
   const parts = String(cookieHeader).split(";");
   for (const p of parts) {
     const chunk = p.trim();
-    if (chunk.startsWith(SESSION_COOKIE + "=")) {
-      return chunk.slice((SESSION_COOKIE + "=").length);
-    }
+    if (chunk.startsWith(SESSION_COOKIE + "=")) return chunk.slice((SESSION_COOKIE + "=").length);
   }
   return null;
 }
@@ -312,6 +403,15 @@ async function getAuthenticatedUser(req) {
   return getUserById(userId);
 }
 
+async function requireAdmin(req, res, next) {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  const email = String(user.email || "").trim().toLowerCase();
+  if (!email || !ADMIN_GOOGLE_EMAILS.has(email)) return res.status(403).json({ error: "Acces admin refuse" });
+  req.adminUser = user;
+  return next();
+}
+
 function sanitizeEditorConfigPayload(payload) {
   if (!payload || typeof payload !== "object") return {};
   const out = {};
@@ -319,17 +419,14 @@ function sanitizeEditorConfigPayload(payload) {
     if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
     const value = payload[key];
     if (value == null) continue;
-    if (typeof value === "object") {
-      out[key] = value;
-    } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      out[key] = value;
-    }
+    if (typeof value === "object") out[key] = value;
+    else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") out[key] = value;
   }
   return out;
 }
 
 async function readEditorConfig() {
-  const raw = await readJson(EDITOR_CONFIG_PATH, { data: {}, updatedAt: Date.now() });
+  const raw = await editorConfigCol().findOne({ id: "main" });
   const cleanData = sanitizeEditorConfigPayload(raw && raw.data);
   return {
     data: cleanData,
@@ -339,34 +436,21 @@ async function readEditorConfig() {
 
 app.get("/config.js", (_req, res) => {
   res.type("application/javascript");
-  const payload = "window.__GOOGLE_CLIENT_ID__ = " + JSON.stringify(GOOGLE_CLIENT_ID) + ";";
-  res.send(payload);
+  res.send("window.__GOOGLE_CLIENT_ID__ = " + JSON.stringify(GOOGLE_CLIENT_ID) + ";");
 });
 
 app.post("/api/auth/google", async (req, res) => {
   try {
-    if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ error: "GOOGLE_CLIENT_ID manquant cote serveur" });
-    }
+    if (!GOOGLE_CLIENT_ID) return res.status(500).json({ error: "GOOGLE_CLIENT_ID manquant cote serveur" });
     const idToken = String(req.body && req.body.idToken ? req.body.idToken : "");
-    if (!idToken) {
-      return res.status(400).json({ error: "idToken manquant" });
-    }
-
-    const ticket = await googleClient.verifyIdToken({
-      idToken,
-      audience: GOOGLE_CLIENT_ID
-    });
-
+    if (!idToken) return res.status(400).json({ error: "idToken manquant" });
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
-    if (!payload) {
-      return res.status(401).json({ error: "Token Google invalide" });
-    }
-
+    if (!payload) return res.status(401).json({ error: "Token Google invalide" });
     const user = await upsertGoogleUser(payload);
     issueSession(res, user.id);
     return res.json({ user: publicUser(user) });
-  } catch (error) {
+  } catch (_) {
     return res.status(401).json({ error: "Connexion Google refusee" });
   }
 });
@@ -386,28 +470,12 @@ app.get("/api/character", async (req, res) => {
 app.post("/api/character", async (req, res) => {
   const user = await getAuthenticatedUser(req);
   if (!user) return res.status(401).json({ error: "Authentification requise" });
-  if (user.character) {
-    return res.status(409).json({ error: "Ce compte Google possede deja un personnage" });
-  }
-
+  if (user.character) return res.status(409).json({ error: "Ce compte Google possede deja un personnage" });
   const payload = sanitizeCharacterPayload(req.body);
-  if (!payload) {
-    return res.status(400).json({ error: "Personnage invalide" });
-  }
-
-  const users = await readJson(USERS_PATH, []);
-  const idx = users.findIndex((u) => u.id === user.id);
-  if (idx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
-
-  users[idx].character = {
-    name: payload.name,
-    raceId: payload.raceId,
-    classId: payload.classId,
-    createdAt: Date.now()
-  };
-  users[idx].updatedAt = Date.now();
-  await writeJson(USERS_PATH, users);
-  return res.status(201).json({ character: users[idx].character });
+  if (!payload) return res.status(400).json({ error: "Personnage invalide" });
+  const character = { name: payload.name, raceId: payload.raceId, classId: payload.classId, createdAt: Date.now() };
+  await usersCol().updateOne({ id: user.id }, { $set: { character, updatedAt: Date.now() } });
+  return res.status(201).json({ character });
 });
 
 app.post("/api/profile/snapshot", async (req, res) => {
@@ -434,12 +502,7 @@ app.post("/api/profile/snapshot", async (req, res) => {
     },
     updatedAt: Date.now()
   };
-  const users = await readJson(USERS_PATH, []);
-  const idx = users.findIndex((u) => u.id === user.id);
-  if (idx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
-  users[idx].profileSnapshot = profileSnapshot;
-  users[idx].updatedAt = Date.now();
-  await writeJson(USERS_PATH, users);
+  await usersCol().updateOne({ id: user.id }, { $set: { profileSnapshot, updatedAt: Date.now() } });
   return res.json({ ok: true });
 });
 
@@ -454,19 +517,18 @@ app.get("/api/profile/:userId", async (req, res) => {
 app.get("/api/guild/me", async (req, res) => {
   const user = await getAuthenticatedUser(req);
   if (!user) return res.status(401).json({ error: "Authentification requise" });
-  const guilds = await readJson(GUILDS_PATH, []);
   if (!user.guildId) return res.json({ guild: null, role: null });
-  const guild = guilds.find((g) => g.id === user.guildId);
+  const guild = await guildsCol().findOne({ id: user.guildId });
   if (!guild) return res.json({ guild: null, role: null });
-  const users = await readJson(USERS_PATH, []);
-  const members = (guild.memberUserIds || []).map((uid) => {
-    const u = users.find((x) => x.id === uid);
-    return {
+  const members = [];
+  for (const uid of Array.isArray(guild.memberUserIds) ? guild.memberUserIds : []) {
+    const u = await usersCol().findOne({ id: uid }, { projection: { id: 1, name: 1, character: 1 } });
+    members.push({
       userId: uid,
       name: sanitizeText((u && u.character && u.character.name) || (u && u.name) || "Joueur", 40),
       role: guild.chiefUserId === uid ? "chief" : "member"
-    };
-  });
+    });
+  }
   const role = guild.chiefUserId === user.id ? "chief" : "member";
   return res.json({ guild: { id: guild.id, name: guild.name, members }, role });
 });
@@ -476,31 +538,23 @@ app.post("/api/guild/create", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Authentification requise" });
   const name = sanitizeText(req.body && req.body.name, 32);
   if (!name || name.length < 3) return res.status(400).json({ error: "Nom de guilde invalide" });
-
-  const users = await readJson(USERS_PATH, []);
-  const userIdx = users.findIndex((u) => u.id === user.id);
-  if (userIdx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
-  if (users[userIdx].guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
-
-  const guilds = await readJson(GUILDS_PATH, []);
-  if (guilds.some((g) => String(g.name).toLowerCase() === String(name).toLowerCase())) {
-    return res.status(409).json({ error: "Ce nom de guilde existe deja" });
-  }
+  if (user.guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
+  const nameLower = name.toLowerCase();
+  const exists = await guildsCol().findOne({ nameLower });
+  if (exists) return res.status(409).json({ error: "Ce nom de guilde existe deja" });
 
   const now = Date.now();
   const guild = {
     id: crypto.randomBytes(10).toString("hex"),
-    name: name,
+    name,
+    nameLower,
     chiefUserId: user.id,
     memberUserIds: [user.id],
     createdAt: now,
     updatedAt: now
   };
-  guilds.push(guild);
-  users[userIdx].guildId = guild.id;
-  users[userIdx].updatedAt = now;
-  await writeJson(GUILDS_PATH, guilds);
-  await writeJson(USERS_PATH, users);
+  await guildsCol().insertOne(guild);
+  await usersCol().updateOne({ id: user.id }, { $set: { guildId: guild.id, updatedAt: now } });
   return res.status(201).json({ guild: { id: guild.id, name: guild.name }, role: "chief" });
 });
 
@@ -509,22 +563,11 @@ app.post("/api/guild/join", async (req, res) => {
   if (!user) return res.status(401).json({ error: "Authentification requise" });
   const name = sanitizeText(req.body && req.body.name, 32);
   if (!name || name.length < 3) return res.status(400).json({ error: "Nom de guilde invalide" });
-
-  const users = await readJson(USERS_PATH, []);
-  const userIdx = users.findIndex((u) => u.id === user.id);
-  if (userIdx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
-  if (users[userIdx].guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
-
-  const guilds = await readJson(GUILDS_PATH, []);
-  const guild = guilds.find((g) => String(g.name).toLowerCase() === String(name).toLowerCase());
+  if (user.guildId) return res.status(409).json({ error: "Tu es deja dans une guilde" });
+  const guild = await guildsCol().findOne({ nameLower: name.toLowerCase() });
   if (!guild) return res.status(404).json({ error: "Guilde introuvable" });
-  if (!Array.isArray(guild.memberUserIds)) guild.memberUserIds = [];
-  if (!guild.memberUserIds.includes(user.id)) guild.memberUserIds.push(user.id);
-  guild.updatedAt = Date.now();
-  users[userIdx].guildId = guild.id;
-  users[userIdx].updatedAt = Date.now();
-  await writeJson(GUILDS_PATH, guilds);
-  await writeJson(USERS_PATH, users);
+  await guildsCol().updateOne({ id: guild.id }, { $addToSet: { memberUserIds: user.id }, $set: { updatedAt: Date.now() } });
+  await usersCol().updateOne({ id: user.id }, { $set: { guildId: guild.id, updatedAt: Date.now() } });
   return res.json({ guild: { id: guild.id, name: guild.name }, role: guild.chiefUserId === user.id ? "chief" : "member" });
 });
 
@@ -539,9 +582,8 @@ app.get("/api/chat/messages", async (req, res) => {
 });
 
 app.get("/api/arena/leaderboard", async (_req, res) => {
-  const users = await readJson(USERS_PATH, []);
+  const users = await usersCol().find({ character: { $exists: true, $ne: null } }).toArray();
   const rows = users
-    .filter((u) => u && u.character)
     .map((u) => {
       const arena = getArenaStats(u);
       return {
@@ -565,47 +607,49 @@ app.post("/api/arena/fight", async (req, res) => {
   if (!targetUserId) return res.status(400).json({ error: "Cible invalide" });
   if (targetUserId === me.id) return res.status(400).json({ error: "Impossible de se battre contre soi-meme" });
 
-  const users = await readJson(USERS_PATH, []);
-  const meIdx = users.findIndex((u) => u.id === me.id);
-  const targetIdx = users.findIndex((u) => u.id === targetUserId);
-  if (meIdx < 0 || targetIdx < 0) return res.status(404).json({ error: "Joueur introuvable" });
-  const target = users[targetIdx];
+  const target = await getUserById(targetUserId);
+  if (!target) return res.status(404).json({ error: "Joueur introuvable" });
   if (!target.character) return res.status(400).json({ error: "La cible n'a pas de personnage" });
-
-  const meArena = getArenaStats(users[meIdx]);
+  const meArena = getArenaStats(me);
   const tArena = getArenaStats(target);
-  const mePow = snapshotPower(users[meIdx].profileSnapshot);
+  const mePow = snapshotPower(me.profileSnapshot);
   const tPow = snapshotPower(target.profileSnapshot);
   const meScoreBase = meArena.rating + mePow * 3;
   const tScoreBase = tArena.rating + tPow * 3;
   const expectedMe = expectedScore(meScoreBase, tScoreBase);
-  const roll = Math.random();
-  const meWins = roll < expectedMe;
+  const meWins = Math.random() < expectedMe;
   const K = 24;
   const meNew = Math.round(meArena.rating + K * ((meWins ? 1 : 0) - expectedMe));
   const tNew = Math.round(tArena.rating + K * ((meWins ? 0 : 1) - (1 - expectedMe)));
+  const meAfter = Math.max(100, meNew);
+  const targetAfter = Math.max(100, tNew);
 
-  users[meIdx].arenaRating = Math.max(100, meNew);
-  users[targetIdx].arenaRating = Math.max(100, tNew);
-  users[meIdx].arenaWins = meArena.wins + (meWins ? 1 : 0);
-  users[meIdx].arenaLosses = meArena.losses + (meWins ? 0 : 1);
-  users[targetIdx].arenaWins = tArena.wins + (meWins ? 0 : 1);
-  users[targetIdx].arenaLosses = tArena.losses + (meWins ? 1 : 0);
-  users[meIdx].updatedAt = Date.now();
-  users[targetIdx].updatedAt = Date.now();
-  await writeJson(USERS_PATH, users);
+  await usersCol().updateOne(
+    { id: me.id },
+    {
+      $set: { arenaRating: meAfter, updatedAt: Date.now() },
+      $inc: { arenaWins: meWins ? 1 : 0, arenaLosses: meWins ? 0 : 1 }
+    }
+  );
+  await usersCol().updateOne(
+    { id: target.id },
+    {
+      $set: { arenaRating: targetAfter, updatedAt: Date.now() },
+      $inc: { arenaWins: meWins ? 0 : 1, arenaLosses: meWins ? 1 : 0 }
+    }
+  );
 
   return res.json({
     result: meWins ? "win" : "loss",
     me: {
-      name: sanitizeText((users[meIdx].character && users[meIdx].character.name) || users[meIdx].name || "Toi", 40),
+      name: sanitizeText((me.character && me.character.name) || me.name || "Toi", 40),
       ratingBefore: meArena.rating,
-      ratingAfter: users[meIdx].arenaRating
+      ratingAfter: meAfter
     },
     enemy: {
       name: sanitizeText((target.character && target.character.name) || target.name || "Adversaire", 40),
       ratingBefore: tArena.rating,
-      ratingAfter: users[targetIdx].arenaRating
+      ratingAfter: targetAfter
     }
   });
 });
@@ -627,11 +671,100 @@ app.post("/api/editor-config", async (req, res) => {
       data: { ...previous.data, ...incoming },
       updatedAt: Date.now()
     };
-    await writeJson(EDITOR_CONFIG_PATH, merged);
+    await editorConfigCol().updateOne({ id: "main" }, { $set: { id: "main", ...merged } }, { upsert: true });
     return res.json({ ok: true, updatedAt: merged.updatedAt });
   } catch (_) {
     return res.status(500).json({ error: "Impossible d'enregistrer la configuration editeur" });
   }
+});
+
+app.get("/api/admin/me", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.json({ admin: false });
+  const email = String(user.email || "").trim().toLowerCase();
+  return res.json({ admin: ADMIN_GOOGLE_EMAILS.has(email), user: publicUser(user) });
+});
+
+app.get("/api/admin/characters", requireAdmin, async (_req, res) => {
+  const users = await usersCol().find({ character: { $exists: true, $ne: null } }).sort({ updatedAt: -1 }).limit(500).toArray();
+  const characters = users.map((u) => ({
+    userId: u.id,
+    playerName: sanitizeText((u.character && u.character.name) || u.name || "Joueur", 40),
+    raceId: sanitizeText((u.character && u.character.raceId) || "", 32),
+    classId: sanitizeText((u.character && u.character.classId) || "", 24),
+    guildId: u.guildId || null,
+    updatedAt: Number(u.updatedAt) || 0
+  }));
+  return res.json({ characters });
+});
+
+app.delete("/api/admin/characters/:userId", requireAdmin, async (req, res) => {
+  const userId = sanitizeText(req.params && req.params.userId, 64);
+  if (!userId) return res.status(400).json({ error: "Utilisateur invalide" });
+  const user = await getUserById(userId);
+  if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });
+
+  if (user.guildId) {
+    const guild = await guildsCol().findOne({ id: user.guildId });
+    if (guild) {
+      const newMembers = (Array.isArray(guild.memberUserIds) ? guild.memberUserIds : []).filter((x) => x !== userId);
+      if (newMembers.length === 0) {
+        await guildsCol().deleteOne({ id: guild.id });
+      } else {
+        const newChief = guild.chiefUserId === userId ? newMembers[0] : guild.chiefUserId;
+        await guildsCol().updateOne(
+          { id: guild.id },
+          { $set: { memberUserIds: newMembers, chiefUserId: newChief, updatedAt: Date.now() } }
+        );
+      }
+    }
+  }
+
+  await usersCol().updateOne(
+    { id: userId },
+    {
+      $unset: { character: "", profileSnapshot: "", guildId: "", arenaRating: "", arenaWins: "", arenaLosses: "" },
+      $set: { updatedAt: Date.now() }
+    }
+  );
+  return res.json({ ok: true });
+});
+
+app.get("/api/admin/guilds", requireAdmin, async (_req, res) => {
+  const guilds = await guildsCol().find({}).sort({ updatedAt: -1 }).limit(500).toArray();
+  return res.json({
+    guilds: guilds.map((g) => ({
+      id: g.id,
+      name: g.name,
+      chiefUserId: g.chiefUserId || null,
+      memberCount: Array.isArray(g.memberUserIds) ? g.memberUserIds.length : 0,
+      updatedAt: Number(g.updatedAt) || 0
+    }))
+  });
+});
+
+app.delete("/api/admin/guilds/:guildId", requireAdmin, async (req, res) => {
+  const guildId = sanitizeText(req.params && req.params.guildId, 64);
+  if (!guildId) return res.status(400).json({ error: "Guilde invalide" });
+  const guild = await guildsCol().findOne({ id: guildId });
+  if (!guild) return res.status(404).json({ error: "Guilde introuvable" });
+  await guildsCol().deleteOne({ id: guildId });
+  await usersCol().updateMany({ guildId }, { $unset: { guildId: "" }, $set: { updatedAt: Date.now() } });
+  return res.json({ ok: true });
+});
+
+app.get("/api/admin/chat/messages", requireAdmin, async (req, res) => {
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 200, 500));
+  const messages = await chatCol().find({}).sort({ createdAt: -1 }).limit(limit).toArray();
+  return res.json({ messages });
+});
+
+app.delete("/api/admin/chat/messages/:messageId", requireAdmin, async (req, res) => {
+  const messageId = sanitizeText(req.params && req.params.messageId, 64);
+  if (!messageId) return res.status(400).json({ error: "Message invalide" });
+  const result = await chatCol().deleteOne({ id: messageId });
+  if (!result.deletedCount) return res.status(404).json({ error: "Message introuvable" });
+  return res.json({ ok: true });
 });
 
 io.use(async (socket, next) => {
@@ -646,8 +779,7 @@ io.use(async (socket, next) => {
       socket.data.user = null;
       return next();
     }
-    const user = await getUserById(session.userId);
-    socket.data.user = user || null;
+    socket.data.user = (await getUserById(session.userId)) || null;
     return next();
   } catch (error) {
     return next(error);
@@ -659,26 +791,23 @@ io.on("connection", (socket) => {
     try {
       const user = socket.data.user;
       if (!user) return;
-      const msg = await appendChatMessage(
-        user,
-        payload && payload.text,
-        payload && payload.characterName
-      );
+      const msg = await appendChatMessage(user, payload && payload.text, payload && payload.characterName);
       if (!msg) return;
       io.emit("chat:message", msg);
-    } catch (_) {
-      // Ignore transient errors
-    }
+    } catch (_) {}
   });
 });
 
-ensureDataFiles()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log("Nordhaven server running on http://localhost:" + PORT);
-    });
-  })
-  .catch((error) => {
-    console.error("Server startup failed:", error);
-    process.exit(1);
+async function boot() {
+  await ensureDataFiles();
+  await connectMongo();
+  await migrateJsonToMongoIfNeeded();
+  server.listen(PORT, () => {
+    console.log("Nordhaven server running on http://localhost:" + PORT);
   });
+}
+
+boot().catch((error) => {
+  console.error("Server startup failed:", error);
+  process.exit(1);
+});

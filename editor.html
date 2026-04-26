@@ -346,7 +346,7 @@
         <section class="editor-card editor-card--wide">
           <h2 class="editor-card__title">Icônes des boutons (village)</h2>
           <p class="editor-hint">
-            Images affichées à gauche sur chaque action (Inventaire, Marchand, Forge, Auberge, Portail).
+            Images affichées à gauche sur chaque action (Inventaire, Marchand, Forge, Auberge, Guilde, Arène, Portail).
             Clé <code>nordhaven-editor-nav-icons-v1</code> — PNG / JPEG / WebP / GIF, carré recommandé, ~400&nbsp;Ko max.
           </p>
           <div class="nav-icons-grid">
@@ -393,6 +393,24 @@
               <div class="nav-icons-preview" id="nav-icon-map-wrap" hidden>
                 <div class="nav-icons-frame" id="nav-icon-map-preview"></div>
                 <button type="button" class="btn btn-sm" id="nav-icon-map-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Guilde</h3>
+              <p class="field__hint">id&nbsp;: <code>guild</code></p>
+              <input type="file" class="field__input" id="nav-icon-guild-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-guild-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-guild-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-guild-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Arène</h3>
+              <p class="field__hint">id&nbsp;: <code>arena</code></p>
+              <input type="file" class="field__input" id="nav-icon-arena-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-arena-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-arena-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-arena-clear">Retirer</button>
               </div>
             </div>
             <div class="nav-icons-card">

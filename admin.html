@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nordhaven - Admin</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <main class="admin">
+    <header class="admin__head">
+      <h1 class="admin__title">Panel admin</h1>
+      <p class="admin__status" id="admin-status">Verification des droits...</p>
+      <div class="admin__actions">
+        <a href="index.html" class="admin__btn">Retour au jeu</a>
+        <button id="admin-refresh" class="admin__btn admin__btn--primary" type="button">Rafraichir</button>
+      </div>
+    </header>
+
+    <section class="admin__card">
+      <h2>Personnages</h2>
+      <div id="characters-list" class="admin__list"></div>
+    </section>
+
+    <section class="admin__card">
+      <h2>Guildes</h2>
+      <div id="guilds-list" class="admin__list"></div>
+    </section>
+
+    <section class="admin__card">
+      <h2>Messages de chat</h2>
+      <div id="chat-list" class="admin__list"></div>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -45,6 +45,8 @@ cd /var/www/nordhaven
 npm install
 ```
 
+Assure-toi aussi d'avoir une instance MongoDB disponible (locale ou managée), puis garde son URI pour `.env`.
+
 ## 5) Configurer les variables d'environnement
 
 ```bash
@@ -56,6 +58,9 @@ Mets:
 
 - `GOOGLE_CLIENT_ID=...` (ton vrai client id Google)
 - `PORT=3000`
+- `MONGODB_URI=mongodb://127.0.0.1:27017`
+- `MONGODB_DB_NAME=nordhaven`
+- `ADMIN_GOOGLE_EMAILS=ton.email@gmail.com`
 
 ## 6) Lancer l'app avec PM2 (restart auto)
 
@@ -119,6 +124,8 @@ ufw status
 - Ouvre `https://TON_DOMAINE`
 - Teste login Google
 - Teste chat multijoueur
+- Teste que MongoDB est bien utilise (creation guilde, restart serveur, guilde toujours presente)
+- Teste `admin.html` avec ton compte allowlist
 
 ## Commandes utiles
 
