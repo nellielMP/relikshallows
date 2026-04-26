@@ -1483,6 +1483,10 @@
 
   function renderMainMenu() {
     var hasSave = !!state.player;
+    var nordhavenArt = getVillageArtUrl("Nordhaven");
+    var backdropHtml = isDataUrlIcon(nordhavenArt)
+      ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
+      : '<div class="mainmenu-backdrop mainmenu-backdrop--fallback" aria-hidden="true"></div>';
     els.location.textContent = "Accueil";
     els.leftTitle.textContent = "Chroniques";
     els.centerTitle.textContent = "Menu principal";
@@ -1502,6 +1506,7 @@
     ].join("");
 
     els.center.innerHTML = [
+      backdropHtml,
       '<div class="mainmenu-panel">',
       '<p class="mainmenu-panel__kicker">Sanctuaire du joueur</p>',
       '<h2 class="mainmenu-panel__title">Menu principal</h2>',

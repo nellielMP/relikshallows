@@ -499,6 +499,8 @@ body {
 
 /* Menu principal */
 .mainmenu-panel {
+  position: relative;
+  z-index: 1;
   border: 1px solid #5c5243;
   border-radius: 6px;
   background:
@@ -537,6 +539,32 @@ body {
 
 .mainmenu-btn {
   font-size: 0.92rem;
+}
+
+.mainmenu-backdrop {
+  border: 1px solid #5b4f3f;
+  border-radius: 6px;
+  min-height: 128px;
+  margin-bottom: 0.55rem;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mainmenu-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(4, 4, 5, 0.4), rgba(9, 9, 10, 0.76)),
+    radial-gradient(circle at 20% 10%, rgba(212, 171, 107, 0.1), rgba(0, 0, 0, 0) 55%);
+}
+
+.mainmenu-backdrop--fallback {
+  background-image:
+    radial-gradient(circle at 10% 8%, rgba(193, 146, 80, 0.18), rgba(0, 0, 0, 0) 56%),
+    linear-gradient(150deg, #2b251e, #16130f 65%, #0d0b09);
 }
 
 .mainmenu-lore__eyebrow {
