@@ -21,7 +21,7 @@
   var ENEMY_ATTACK_SPEED_MIN = 0.2;
   var ENEMY_ATTACK_SPEED_MAX = 8;
 
-  var MAX_ICON_BYTES = 400 * 1024;
+  var MAX_ICON_BYTES = 700 * 1024;
   var MAX_SOUND_BYTES = 500 * 1024;
   var SOUND_KEYS = ["buttonClick", "villageButton", "equip", "unequip"];
   var NAV_ICON_KEYS = ["inventory", "shop", "forge", "inn", "map", "gold"];
@@ -126,7 +126,7 @@
   function isAllowedIconDataUrl(s) {
     return (
       typeof s === "string" &&
-      s.length < 450000 &&
+      s.length < 1200000 &&
       /^data:image\/(png|jpe?g|webp|gif);base64,/.test(s)
     );
   }
@@ -455,7 +455,7 @@
     var f = inputEl.files && inputEl.files[0];
     if (!f) return;
     if (f.size > MAX_ICON_BYTES) {
-      showToast("Image trop lourde (max. ~400 Ko).", true);
+      showToast("Image trop lourde (max. ~700 Ko).", true);
       inputEl.value = "";
       return;
     }

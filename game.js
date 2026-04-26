@@ -543,7 +543,7 @@
   function isDataUrlIcon(s) {
     return (
       typeof s === "string" &&
-      s.length < 450000 &&
+      s.length < 1200000 &&
       /^data:image\/(png|jpe?g|webp|gif);base64,/.test(s)
     );
   }
