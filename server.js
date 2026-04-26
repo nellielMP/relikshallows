@@ -210,8 +210,31 @@ function publicUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
-    avatarUrl: user.avatarUrl
+    avatarUrl: user.avatarUrl,
+    hasCharacter: !!(user && user.character)
   };
+}
+
+function sanitizeCharacterPayload(raw) {
+  const name = sanitizeText(raw && raw.name, 24);
+  const raceId = String(raw && raw.raceId ? raw.raceId : "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 32);
+  const classId = String(raw && raw.classId ? raw.classId : "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]/g, "")
+    .slice(0, 24);
+  if (!name || !raceId || !classId) return null;
+  return { name, raceId, classId };
+}
+
+async function getAuthenticatedUser(req) {
+  const userId = getSessionUserId(req);
+  if (!userId) return null;
+  return getUserById(userId);
 }
 
 function sanitizeEditorConfigPayload(payload) {
@@ -274,11 +297,42 @@ app.post("/api/auth/google", async (req, res) => {
 });
 
 app.get("/api/me", async (req, res) => {
-  const userId = getSessionUserId(req);
-  if (!userId) return res.json({ user: null });
-  const user = await getUserById(userId);
+  const user = await getAuthenticatedUser(req);
   if (!user) return res.json({ user: null });
   return res.json({ user: publicUser(user) });
+});
+
+app.get("/api/character", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  return res.json({ character: user.character || null });
+});
+
+app.post("/api/character", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  if (user.character) {
+    return res.status(409).json({ error: "Ce compte Google possede deja un personnage" });
+  }
+
+  const payload = sanitizeCharacterPayload(req.body);
+  if (!payload) {
+    return res.status(400).json({ error: "Personnage invalide" });
+  }
+
+  const users = await readJson(USERS_PATH, []);
+  const idx = users.findIndex((u) => u.id === user.id);
+  if (idx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+
+  users[idx].character = {
+    name: payload.name,
+    raceId: payload.raceId,
+    classId: payload.classId,
+    createdAt: Date.now()
+  };
+  users[idx].updatedAt = Date.now();
+  await writeJson(USERS_PATH, users);
+  return res.status(201).json({ character: users[idx].character });
 });
 
 app.post("/api/logout", (req, res) => {

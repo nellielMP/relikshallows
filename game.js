@@ -1230,6 +1230,7 @@
   var state = loadState() || makeInitialState();
   normalizeSaveState();
   state.mode = "menu";
+  var authUser = null;
 
   var els = {
     leftTitle: document.getElementById("left-title"),
@@ -1274,6 +1275,55 @@
     } catch (_) {
       return null;
     }
+  }
+
+  async function apiJson(url, options) {
+    var response = await fetch(url, options || {});
+    var data = await response.json().catch(function () {
+      return {};
+    });
+    if (!response.ok) {
+      var message = data && data.error ? data.error : "Erreur serveur";
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  function makePlayerFromSelection(name, raceId, classId) {
+    var model = CLASSES[classId] || CLASSES.guerrier;
+    return {
+      name: name,
+      raceId: raceId,
+      classId: classId,
+      level: 1,
+      xp: 0,
+      xpToNext: 45,
+      talentPoints: 0,
+      talents: { vitalite: 0, intelligence: 0, endurance: 0 },
+      skills: makeDefaultSkills(),
+      vitalite: model.vitalite,
+      intelligence: model.intelligence,
+      magie: model.intelligence,
+      endurance: model.endurance,
+      defense: 0,
+      atkMin: model.atkMin,
+      atkMax: model.atkMax,
+      magieMax: model.intelligence
+    };
+  }
+
+  async function hydrateCharacterFromAccount() {
+    try {
+      var meResp = await apiJson("/api/me");
+      authUser = meResp && meResp.user ? meResp.user : null;
+      if (!authUser) return;
+      var chResp = await apiJson("/api/character");
+      var ch = chResp && chResp.character ? chResp.character : null;
+      if (!ch) return;
+      state.player = makePlayerFromSelection(ch.name, ch.raceId || "nordique", ch.classId || "guerrier");
+      recalcDerivedStats();
+      saveState();
+    } catch (_) {}
   }
 
   function normalizeSaveState() {
@@ -1483,6 +1533,7 @@
 
   function renderMainMenu() {
     var hasSave = !!state.player;
+    var hasLinkedCharacter = !!(authUser && authUser.hasCharacter);
     var nordhavenArt = getVillageArtUrl("Nordhaven");
     var backdropHtml = isDataUrlIcon(nordhavenArt)
       ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
@@ -1510,9 +1561,13 @@
       '<div class="mainmenu-panel">',
       '<p class="mainmenu-panel__kicker">Sanctuaire du joueur</p>',
       '<h2 class="mainmenu-panel__title">Menu principal</h2>',
-      '<p class="mainmenu-panel__lead">Choisis ton entree dans le monde.</p>',
+      '<p class="mainmenu-panel__lead">' +
+        (hasLinkedCharacter
+          ? "Ce compte Google a deja un personnage. Charge ta partie pour continuer."
+          : "Choisis ton entree dans le monde.") +
+      "</p>",
       '<div class="mainmenu-actions">',
-      '<button type="button" class="btn btn--primary mainmenu-btn" id="menu-new">Creation de personnage</button>',
+      '<button type="button" class="btn btn--primary mainmenu-btn" id="menu-new"' + (hasLinkedCharacter ? " disabled" : "") + '>Creation de personnage</button>',
       '<button type="button" class="btn mainmenu-btn" id="menu-login"' + (hasSave ? "" : " disabled") + '>Connexion / charger la partie</button>',
       (hasSave ? '<button type="button" class="btn mainmenu-btn" id="menu-continue">Continuer l\'aventure</button>' : ""),
       "</div>",
@@ -1687,7 +1742,15 @@
       });
     }
 
-    els.left.querySelector("#create-btn").addEventListener("click", function () {
+    els.left.querySelector("#create-btn").addEventListener("click", async function () {
+      if (!authUser) {
+        showToast("Connecte-toi avec Google avant de creer ton personnage.", true);
+        return;
+      }
+      if (authUser.hasCharacter) {
+        showToast("Ce compte Google a deja un personnage.", true);
+        return;
+      }
       var nameInput = els.left.querySelector("#hero-name");
       var name = (nameInput.value || "").replace(/\s+/g, " ").trim();
       var pickedClass = document.querySelector('input[name="class"]:checked');
@@ -1700,26 +1763,19 @@
         return;
       }
 
-      var model = CLASSES[classId];
-      state.player = {
-        name: name,
-        raceId: raceId,
-        classId: classId,
-        level: 1,
-        xp: 0,
-        xpToNext: 45,
-        talentPoints: 0,
-        talents: { vitalite: 0, intelligence: 0, endurance: 0 },
-        skills: makeDefaultSkills(),
-        vitalite: model.vitalite,
-        intelligence: model.intelligence,
-        magie: model.intelligence,
-        endurance: model.endurance,
-        defense: 0,
-        atkMin: model.atkMin,
-        atkMax: model.atkMax,
-        magieMax: model.intelligence
-      };
+      try {
+        await apiJson("/api/character", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name, raceId: raceId, classId: classId })
+        });
+      } catch (err) {
+        showToast(err.message || "Creation impossible.", true);
+        return;
+      }
+      authUser.hasCharacter = true;
+      var model = CLASSES[classId] || CLASSES.guerrier;
+      state.player = makePlayerFromSelection(name, raceId, classId);
       recalcDerivedStats();
       state.mode = "village";
       log(name + " rejoint Nordhaven en tant que " + model.label + ".");
@@ -4199,7 +4255,7 @@
       .replace(/'/g, "&#39;");
   }
 
-  hydrateEditorDataFromServer().then(function () {
+  Promise.all([hydrateEditorDataFromServer(), hydrateCharacterFromAccount()]).then(function () {
     bindEditorUiSounds();
     render();
   });
