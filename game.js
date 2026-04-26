@@ -1539,19 +1539,19 @@
     var backdropHtml = isDataUrlIcon(nordhavenArt)
       ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
       : '<div class="mainmenu-backdrop mainmenu-backdrop--fallback" aria-hidden="true"></div>';
-    els.location.textContent = "Hall principal";
-    els.leftTitle.textContent = "Le Monde";
-    els.centerTitle.textContent = "PORTAIL";
-    els.rightTitle.textContent = "Session joueur";
+    els.location.textContent = "Avant-poste";
+    els.leftTitle.textContent = "Chronique";
+    els.centerTitle.textContent = "Menu principal";
+    els.rightTitle.textContent = "Presence";
 
     els.left.innerHTML = [
-      '<div class="mainmenu-lore card mainmenu-lore--v2">',
-      '<p class="mainmenu-lore__eyebrow">Monde vivant</p>',
-      '<h3 class="mainmenu-lore__title">Le Nord t observe deja</h3>',
-      '<p class="mainmenu-lore__text">Les villages evoluent, les quetes tournent, les rumeurs changent a chaque retour en ville. Ce menu est ton seuil vers une chronique qui continue meme quand tu hesites.</p>',
+      '<div class="mainmenu-lore card mainmenu-lore--fresh">',
+      '<p class="mainmenu-lore__eyebrow">Nuit sur Nordhaven</p>',
+      '<h3 class="mainmenu-lore__title">Un monde qui respire</h3>',
+      '<p class="mainmenu-lore__text">Le vent change, les rumeurs tournent, les routes restent dangereuses. Chaque connexion est une nouvelle page de ta chronique.</p>',
       '<div class="mainmenu-lore__tags" aria-hidden="true">' +
-      '<span class="mainmenu-tag">RPG narratif</span>' +
-      '<span class="mainmenu-tag">Exploration</span>' +
+      '<span class="mainmenu-tag">Villages vivants</span>' +
+      '<span class="mainmenu-tag">Quetes</span>' +
       '<span class="mainmenu-tag">Progression</span>' +
       "</div>" +
       "</div>"
@@ -1559,30 +1559,35 @@
 
     els.center.innerHTML = [
       backdropHtml,
-      '<div class="mainmenu-panel">',
-      '<p class="mainmenu-panel__kicker">Portail d entree</p>',
-      '<h2 class="mainmenu-panel__title">Choisis ta trace dans le Nord</h2>',
-      '<p class="mainmenu-panel__lead">' +
+      '<div class="mainmenu-portal">',
+      '<div class="mainmenu-portal__hero">',
+      '<p class="mainmenu-portal__kicker">Porte nord</p>',
+      '<h2 class="mainmenu-portal__title">Entre dans un monde en mouvement</h2>',
+      '<p class="mainmenu-portal__text">' +
         (hasLinkedCharacter
-          ? "Ton compte Google porte deja un heros. Reprends ton histoire la ou tu l as laissee."
+          ? "Ton compte Google est deja lie a un heros. Le portail est pret, il attend ton retour."
           : "Connecte avec Google puis forge un heros pour entrer dans le monde.") +
       "</p>",
-      '<div class="mainmenu-actions">',
-      '<button type="button" class="btn btn--primary mainmenu-btn" id="menu-new"' + (hasLinkedCharacter ? " disabled" : "") + '>Creation de personnage</button>',
-      (hasSave ? '<button type="button" class="btn mainmenu-btn" id="menu-continue">Continuer l\'aventure</button>' : ""),
+      "</div>",
+      '<div class="mainmenu-portal__body">',
+      '<div class="mainmenu-portal__actions">',
+      '<button type="button" class="btn btn--primary mainmenu-portal__btn" id="menu-new"' + (hasLinkedCharacter ? " disabled" : "") + '>Nouvelle creation de personnage</button>',
+      (hasSave ? '<button type="button" class="btn mainmenu-portal__btn" id="menu-continue">Reprendre la chronique</button>' : ""),
+      "</div>",
+      '<p class="mainmenu-portal__hint">Le portail ne s ouvre qu aux joueurs connectes avec Google.</p>',
       "</div>",
       "</div>"
     ].join("");
 
     els.right.innerHTML = [
-      '<div class="mainmenu-side card mainmenu-side--v2">',
-      '<h4 class="mainmenu-side__title">Etat du portail</h4>',
+      '<div class="mainmenu-presence">',
+      '<h4 class="mainmenu-presence__title">Etat de ta presence</h4>',
       (hasSave
-        ? '<p class="mainmenu-side__line"><strong>Personnage :</strong> ' + escapeHtml(state.player.name) + '</p>' +
-          '<p class="mainmenu-side__line"><strong>Niveau :</strong> ' + escapeHtml(String(state.player.level || 1)) + '</p>' +
-          '<p class="mainmenu-side__line"><strong>Lieu :</strong> ' + escapeHtml(state.currentVillage || "Nordhaven") + "</p>"
-        : '<p class="mainmenu-side__line muted">Aucune partie en cours. Cree un personnage pour commencer.</p>') +
-      '<p class="mainmenu-side__line muted">Connexion Google requise pour creer un personnage et synchroniser la progression.</p>' +
+        ? '<p class="mainmenu-presence__line"><strong>Heros :</strong> ' + escapeHtml(state.player.name) + '</p>' +
+          '<p class="mainmenu-presence__line"><strong>Niveau :</strong> ' + escapeHtml(String(state.player.level || 1)) + '</p>' +
+          '<p class="mainmenu-presence__line"><strong>Dernier lieu :</strong> ' + escapeHtml(state.currentVillage || "Nordhaven") + "</p>"
+        : '<p class="mainmenu-presence__line muted">Aucune chronique en memoire. Cree un heros pour commencer.</p>') +
+      '<p class="mainmenu-presence__line muted">Authentification Google active pour la creation et la synchronisation.</p>' +
       "</div>"
     ].join("");
 
