@@ -1,0 +1,362 @@
+/* Fond atmosphérique jour / nuit — calques en fondu (transitions fluides) */
+:root {
+  --skyrim-cycle: 200s;
+  --sky-ease: cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+html,
+body {
+  background: transparent;
+}
+
+.skyrim-skycycle {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: #06080c;
+}
+
+.sky-layer,
+.sky-stars,
+.sky-aurora,
+.sky-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Base toujours présente : brume / sol */
+.sky-layer--deep {
+  z-index: 0;
+  background:
+    linear-gradient(
+      to top,
+      rgba(4, 3, 2, 0.97) 0%,
+      rgba(18, 16, 14, 0.55) 28%,
+      rgba(28, 32, 40, 0.35) 55%,
+      rgba(40, 48, 58, 0.2) 100%
+    ),
+    radial-gradient(ellipse 140% 70% at 50% 115%, rgba(15, 18, 24, 0.95), transparent 52%);
+}
+
+/* Jour — ciel froid, bande lumineuse */
+.sky-layer--day {
+  z-index: 1;
+  opacity: 1;
+  animation: sky-layer-day var(--skyrim-cycle) var(--sky-ease) infinite;
+  background:
+    radial-gradient(ellipse 130% 55% at 50% -8%, rgba(210, 230, 255, 0.42), transparent 58%),
+    radial-gradient(ellipse 90% 40% at 78% 18%, rgba(180, 210, 240, 0.18), transparent 50%),
+    linear-gradient(
+      168deg,
+      #4a6e94 0%,
+      #6d94b8 18%,
+      #9eb8d0 38%,
+      #7a8a9c 58%,
+      #454a54 82%,
+      #1e2228 100%
+    );
+}
+
+/* Coucher / lever — chaleurs */
+.sky-layer--warm {
+  z-index: 2;
+  opacity: 0;
+  animation: sky-layer-warm var(--skyrim-cycle) var(--sky-ease) infinite;
+  background:
+    radial-gradient(ellipse 110% 55% at 50% 92%, rgba(255, 150, 95, 0.55), transparent 55%),
+    radial-gradient(ellipse 70% 35% at 22% 28%, rgba(255, 190, 140, 0.22), transparent 50%),
+    linear-gradient(
+      172deg,
+      rgba(90, 70, 110, 0.85) 0%,
+      rgba(180, 90, 75, 0.75) 28%,
+      rgba(255, 160, 110, 0.65) 48%,
+      rgba(120, 70, 95, 0.7) 72%,
+      rgba(40, 28, 45, 0.9) 100%
+    );
+}
+
+/* Nuit — bleu profond */
+.sky-layer--night {
+  z-index: 3;
+  opacity: 0;
+  animation: sky-layer-night var(--skyrim-cycle) var(--sky-ease) infinite;
+  background:
+    radial-gradient(ellipse 100% 45% at 50% 12%, rgba(35, 55, 120, 0.45), transparent 55%),
+    linear-gradient(
+      168deg,
+      #03060c 0%,
+      #0a1428 28%,
+      #061220 52%,
+      #020408 78%,
+      #010204 100%
+    );
+}
+
+/* Étoiles */
+.sky-stars {
+  z-index: 4;
+  opacity: 0;
+  animation: sky-stars-fade var(--skyrim-cycle) var(--sky-ease) infinite;
+  background-image:
+    radial-gradient(1.2px 1.2px at 8% 12%, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1px 1px at 22% 8%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1.5px 1.5px at 38% 18%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 55% 6%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.2px 1.2px at 72% 14%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 88% 10%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 15% 35%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.3px 1.3px at 45% 28%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 68% 32%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.2px 1.2px at 92% 38%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 12% 52%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.4px 1.4px at 58% 48%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 78% 55%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1px 1px at 33% 68%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.2px 1.2px at 64% 72%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 18% 88%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.3px 1.3px at 48% 82%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 85% 78%, rgba(255, 255, 255, 0.55), transparent);
+}
+
+/* Aurore boréale */
+.sky-aurora {
+  z-index: 5;
+  left: -8%;
+  right: -8%;
+  top: 6%;
+  height: 46%;
+  opacity: 0;
+  filter: blur(32px);
+  mix-blend-mode: screen;
+  animation: sky-aurora-fade var(--skyrim-cycle) var(--sky-ease) infinite;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(72, 160, 130, 0.28) 26%,
+    rgba(60, 140, 200, 0.22) 48%,
+    rgba(120, 90, 180, 0.2) 68%,
+    transparent 100%
+  );
+}
+
+/* Halo soleil / clarté zénithale */
+.sky-glow--sun {
+  z-index: 6;
+  inset: auto;
+  left: 50%;
+  top: -6%;
+  width: min(52vw, 460px);
+  height: min(52vw, 460px);
+  transform: translate(-50%, 0);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  animation: sky-sun-glow var(--skyrim-cycle) var(--sky-ease) infinite;
+  background: radial-gradient(
+    circle at 42% 42%,
+    rgba(255, 252, 235, 0.55) 0%,
+    rgba(255, 220, 160, 0.18) 38%,
+    rgba(255, 180, 120, 0.06) 52%,
+    transparent 62%
+  );
+  filter: blur(1px);
+}
+
+@keyframes sky-layer-day {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  26% {
+    opacity: 1;
+  }
+  36% {
+    opacity: 0.08;
+  }
+  52% {
+    opacity: 0;
+  }
+  66% {
+    opacity: 0;
+  }
+  78% {
+    opacity: 0.18;
+  }
+  91% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes sky-layer-warm {
+  0%,
+  100% {
+    opacity: 0.06;
+  }
+  22% {
+    opacity: 0.04;
+  }
+  32% {
+    opacity: 0.92;
+  }
+  41% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0;
+  }
+  64% {
+    opacity: 0;
+  }
+  73% {
+    opacity: 0.88;
+  }
+  84% {
+    opacity: 0.28;
+  }
+  93% {
+    opacity: 0.08;
+  }
+}
+
+@keyframes sky-layer-night {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.08;
+  }
+  40% {
+    opacity: 0.92;
+  }
+  56% {
+    opacity: 1;
+  }
+  64% {
+    opacity: 0.98;
+  }
+  74% {
+    opacity: 0.35;
+  }
+  86% {
+    opacity: 0;
+  }
+}
+
+@keyframes sky-stars-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  28% {
+    opacity: 0;
+  }
+  38% {
+    opacity: 0.88;
+  }
+  58% {
+    opacity: 0.92;
+  }
+  70% {
+    opacity: 0.75;
+  }
+  82% {
+    opacity: 0;
+  }
+}
+
+@keyframes sky-aurora-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  34% {
+    opacity: 0;
+  }
+  44% {
+    opacity: 0.62;
+  }
+  54% {
+    opacity: 0.72;
+  }
+  62% {
+    opacity: 0.45;
+  }
+  72% {
+    opacity: 0;
+  }
+}
+
+@keyframes sky-sun-glow {
+  0%,
+  100% {
+    opacity: 0.52;
+    transform: translate(-50%, 0) scale(1);
+  }
+  28% {
+    opacity: 0.5;
+    transform: translate(-50%, 0) scale(1.02);
+  }
+  38% {
+    opacity: 0.08;
+    transform: translate(-50%, 12%) scale(0.88);
+  }
+  52% {
+    opacity: 0;
+    transform: translate(-50%, 22%) scale(0.75);
+  }
+  66% {
+    opacity: 0;
+    transform: translate(-50%, 22%) scale(0.75);
+  }
+  78% {
+    opacity: 0.12;
+    transform: translate(-50%, 8%) scale(0.92);
+  }
+  90% {
+    opacity: 0.48;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.app,
+.editor-app {
+  position: relative;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-layer--day,
+  .sky-layer--warm,
+  .sky-layer--night,
+  .sky-stars,
+  .sky-aurora,
+  .sky-glow--sun {
+    animation: none;
+  }
+
+  .sky-layer--day {
+    opacity: 1;
+  }
+
+  .sky-layer--warm {
+    opacity: 0.08;
+  }
+
+  .sky-layer--night {
+    opacity: 0;
+  }
+
+  .sky-stars,
+  .sky-aurora {
+    opacity: 0;
+  }
+
+  .sky-glow--sun {
+    opacity: 0.45;
+    transform: translate(-50%, 0);
+  }
+}

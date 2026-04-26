@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nordhaven — Éditeur</title>
+  <link rel="stylesheet" href="editor.css" />
+  <link rel="stylesheet" href="skyrim-sky.css" />
+</head>
+<body>
+  <div class="skyrim-skycycle" aria-hidden="true">
+    <div class="sky-layer sky-layer--deep"></div>
+    <div class="sky-layer sky-layer--day"></div>
+    <div class="sky-layer sky-layer--warm"></div>
+    <div class="sky-layer sky-layer--night"></div>
+    <div class="sky-stars"></div>
+    <div class="sky-aurora"></div>
+    <div class="sky-glow sky-glow--sun"></div>
+  </div>
+  <div class="editor-app">
+    <header class="editor-topbar">
+      <div>
+        <p class="editor-eyebrow">Outils auteur</p>
+        <h1 class="editor-title">Éditeur Nordhaven</h1>
+      </div>
+      <div class="editor-topbar__actions">
+        <button type="button" class="editor-btn-danger" id="editor-reset-game-save" title="Efface la sauvegarde du jeu uniquement (pas les donnees de l'editeur)">
+          Nouvelle partie
+        </button>
+        <a class="editor-back" href="index.html">← Retour au jeu</a>
+      </div>
+    </header>
+
+    <nav class="editor-nav" aria-label="Sections">
+      <button type="button" class="editor-nav__pill editor-nav__pill--active" data-tab="weapons">Armes</button>
+      <button type="button" class="editor-nav__pill" data-tab="items">Objets &amp; grimoires</button>
+      <button type="button" class="editor-nav__pill" data-tab="spells">Sorts</button>
+      <button type="button" class="editor-nav__pill" data-tab="armors">Armures</button>
+      <button type="button" class="editor-nav__pill" data-tab="races">Races</button>
+      <button type="button" class="editor-nav__pill" data-tab="nav">Navigation</button>
+      <button type="button" class="editor-nav__pill" data-tab="skills">Compétences</button>
+      <button type="button" class="editor-nav__pill" data-tab="cursor">Curseur</button>
+      <button type="button" class="editor-nav__pill" data-tab="sounds">Son</button>
+      <button type="button" class="editor-nav__pill" data-tab="monsters">Monstres</button>
+      <button type="button" class="editor-nav__pill" data-tab="quests">Quêtes (combat)</button>
+    </nav>
+
+    <!-- Armes -->
+    <div id="panel-weapons" class="editor-panels">
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card" aria-labelledby="base-weapons-heading">
+          <h2 id="base-weapons-heading" class="editor-card__title">Armes du jeu (référence)</h2>
+          <p class="editor-hint">Objets déjà présents dans <code>catalog.js</code> — lecture seule. Les ajouts personnalisés sont à droite.</p>
+          <ul class="ref-list" id="base-weapon-list"></ul>
+        </section>
+        <section class="editor-card" aria-labelledby="list-heading">
+          <h2 id="list-heading" class="editor-card__title">Armes personnalisées</h2>
+          <p class="editor-hint">Fusion marchand : <code>nordhaven-editor-weapons-v1</code></p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-weapon">+ Nouvelle arme</button>
+          <ul class="weapon-list" id="weapon-list"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="weapon-form-section" hidden aria-labelledby="form-heading">
+          <h2 id="form-heading" class="editor-card__title">Nouvelle arme</h2>
+          <form id="weapon-form" class="weapon-form">
+            <input type="hidden" id="w-id" name="id" />
+            <label class="field">
+              <span class="field__label">Nom</span>
+              <input class="field__input" id="w-name" name="name" type="text" required maxlength="48" placeholder="ex: Lame du vent du nord" />
+            </label>
+            <label class="field">
+              <span class="field__label">Prix (septims)</span>
+              <input class="field__input" id="w-cost" name="cost" type="number" min="1" step="1" value="20" required />
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span class="field__label">Dégâts min</span>
+                <input class="field__input" id="w-atk-min" name="atkMin" type="number" min="0" step="1" value="1" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Dégâts max</span>
+                <input class="field__input" id="w-atk-max" name="atkMax" type="number" min="0" step="1" value="3" required />
+              </label>
+            </div>
+            <label class="field">
+              <span class="field__label">Vitesse d'attaque</span>
+              <input class="field__input" id="w-atk-speed" name="attackSpeed" type="number" min="0.3" max="3" step="0.1" value="1" required />
+              <p class="field__hint">Plus la valeur est haute, plus tu enchaînes de petits coups par action en combat (1 = référence).</p>
+            </label>
+            <label class="field">
+              <span class="field__label">Rareté</span>
+              <select class="field__input" id="w-rarity" name="rarity">
+                <option value="common">Commun</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Épique</option>
+              </select>
+            </label>
+            <div class="field">
+              <span class="field__label">Icône (optionnel)</span>
+              <p class="field__hint">PNG, JPEG, WebP ou GIF — max. ~400 Ko.</p>
+              <input class="field__input" id="w-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="weapon-icon-preview" id="w-icon-preview-wrap" hidden>
+                <div class="weapon-icon-preview__frame" id="w-icon-preview-frame"></div>
+                <button type="button" class="btn btn-sm" id="w-icon-clear">Retirer l'icône</button>
+              </div>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary" id="btn-save-weapon">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-form" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- Sorts -->
+    <div id="panel-spells" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card">
+          <h2 class="editor-card__title">Sorts personnalisés</h2>
+          <p class="editor-hint"><code>nordhaven-editor-spells-v1</code> — pouvoirs disponibles en combat.</p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-spell">+ Nouveau sort</button>
+          <ul class="weapon-list" id="spell-list-editor"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="spell-form-section" hidden>
+          <h2 class="editor-card__title" id="spell-form-title">Sort</h2>
+          <form id="spell-form" class="weapon-form">
+            <input type="hidden" id="sp-id-hidden" />
+            <label class="field"><span class="field__label">Identifiant unique</span><input class="field__input" id="sp-id" maxlength="32" required placeholder="ex: glace_noire" /></label>
+            <label class="field"><span class="field__label">Nom affiché</span><input class="field__input" id="sp-name" maxlength="48" required /></label>
+            <label class="field"><span class="field__label">Description</span><textarea class="field__input" id="sp-desc" rows="3" maxlength="220"></textarea></label>
+            <label class="field"><span class="field__label">Mana requis</span><input class="field__input" id="sp-mana" type="number" min="0" max="99" value="3" required /></label>
+            <label class="field"><span class="field__label">Effet</span><select class="field__input" id="sp-effect"><option value="damage">Dégâts</option><option value="heal">Soin</option></select></label>
+            <label class="field"><span class="field__label">Puissance min</span><input class="field__input" id="sp-pmin" type="number" min="1" value="10" required /></label>
+            <label class="field"><span class="field__label">Puissance max</span><input class="field__input" id="sp-pmax" type="number" min="1" value="14" required /></label>
+            <label class="field"><span class="field__label">Stat de scaling</span><select class="field__input" id="sp-scale"><option value="intelligence">Intelligence</option><option value="vitalite">Vitalité</option><option value="endurance">Endurance</option><option value="none">Aucune</option></select></label>
+            <label class="field"><span class="field__label">Compétence liée</span><select class="field__input" id="sp-skill"><option value="destruction">Destruction</option><option value="restoration">Soins</option><option value="none">Aucune</option></select></label>
+            <label class="field"><span class="field__label">XP gagnée</span><input class="field__input" id="sp-xp" type="number" min="0" max="50" value="6" required /></label>
+            <label class="field"><span class="field__label">Glyphe fallback</span><input class="field__input" id="sp-glyph" maxlength="2" value="✦" /></label>
+            <div class="field">
+              <span class="field__label">Icône (optionnel)</span>
+              <input class="field__input" id="sp-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="weapon-icon-preview" id="sp-icon-preview-wrap" hidden>
+                <div class="weapon-icon-preview__frame" id="sp-icon-preview-frame"></div>
+                <button type="button" class="btn btn-sm" id="sp-icon-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-spell" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- Objets -->
+    <div id="panel-items" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card">
+          <h2 class="editor-card__title">Objets du jeu (référence)</h2>
+          <ul class="ref-list" id="base-item-list"></ul>
+        </section>
+        <section class="editor-card">
+          <h2 class="editor-card__title">Objets personnalisés</h2>
+          <p class="editor-hint"><code>nordhaven-editor-items-v1</code> — potions, rations, grimoires.</p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-item">+ Nouvel objet</button>
+          <ul class="weapon-list" id="item-list"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="item-form-section" hidden>
+          <h2 class="editor-card__title" id="item-form-title">Objet</h2>
+          <form id="item-form" class="weapon-form">
+            <input type="hidden" id="it-id" />
+            <label class="field">
+              <span class="field__label">Identifiant unique</span>
+              <input class="field__input" id="it-id-input" required maxlength="48" placeholder="ex: potion_sang_dragon" />
+            </label>
+            <label class="field">
+              <span class="field__label">Nom affiché</span>
+              <input class="field__input" id="it-name" required maxlength="48" />
+            </label>
+            <label class="field">
+              <span class="field__label">Prix</span>
+              <input class="field__input" id="it-cost" type="number" min="1" value="12" required />
+            </label>
+            <label class="field">
+              <span class="field__label">Type</span>
+              <select class="field__input" id="it-kind">
+                <option value="consumable">Consommable</option>
+                <option value="spellbook">Grimoire</option>
+              </select>
+            </label>
+            <label class="field" id="it-effect-wrap">
+              <span class="field__label">Effet</span>
+              <select class="field__input" id="it-effect">
+                <option value="heal">Soin (PV)</option>
+                <option value="mana">Mana</option>
+                <option value="stamina">Endurance</option>
+              </select>
+            </label>
+            <label class="field" id="it-spell-wrap" hidden>
+              <span class="field__label">Sort enseigné</span>
+              <select class="field__input" id="it-spell">
+                <option value="heal">Guérison</option>
+                <option value="fireball">Boule de feu</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Rareté</span>
+              <select class="field__input" id="it-rarity">
+                <option value="common">Commun</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Épique</option>
+              </select>
+            </label>
+            <div class="field">
+              <span class="field__label">Icône (optionnel)</span>
+              <input class="field__input" id="it-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="weapon-icon-preview" id="it-icon-preview-wrap" hidden>
+                <div class="weapon-icon-preview__frame" id="it-icon-preview-frame"></div>
+                <button type="button" class="btn btn-sm" id="it-icon-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-item" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- Armures -->
+    <div id="panel-armors" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card">
+          <h2 class="editor-card__title">Armures du jeu (référence)</h2>
+          <ul class="ref-list" id="base-armor-list"></ul>
+        </section>
+        <section class="editor-card">
+          <h2 class="editor-card__title">Armures personnalisées</h2>
+          <p class="editor-hint"><code>nordhaven-editor-armors-v1</code></p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-armor">+ Nouvelle armure</button>
+          <ul class="weapon-list" id="armor-list"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="armor-form-section" hidden>
+          <h2 class="editor-card__title" id="armor-form-title">Armure</h2>
+          <form id="armor-form" class="weapon-form">
+            <input type="hidden" id="ar-id" />
+            <label class="field">
+              <span class="field__label">Identifiant</span>
+              <input class="field__input" id="ar-id-input" required maxlength="48" />
+            </label>
+            <label class="field">
+              <span class="field__label">Nom</span>
+              <input class="field__input" id="ar-name" required maxlength="48" />
+            </label>
+            <label class="field">
+              <span class="field__label">Prix</span>
+              <input class="field__input" id="ar-cost" type="number" min="1" value="25" required />
+            </label>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Vitalité</span><input class="field__input" id="ar-vit" type="number" min="0" value="0" /></label>
+              <label class="field"><span class="field__label">Intelligence (magie)</span><input class="field__input" id="ar-mag" type="number" min="0" value="0" /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Endurance</span><input class="field__input" id="ar-end" type="number" min="0" value="0" /></label>
+              <label class="field"><span class="field__label">Défense</span><input class="field__input" id="ar-def" type="number" min="0" value="0" /></label>
+            </div>
+            <label class="field">
+              <span class="field__label">Rareté</span>
+              <select class="field__input" id="ar-rarity">
+                <option value="common">Commun</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Épique</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Emplacement</span>
+              <select class="field__input" id="ar-slot">
+                <option value="armor">Corps (armure)</option>
+                <option value="necklace">Collier</option>
+              </select>
+            </label>
+            <div class="field">
+              <span class="field__label">Icône (optionnel)</span>
+              <input class="field__input" id="ar-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="weapon-icon-preview" id="ar-icon-preview-wrap" hidden>
+                <div class="weapon-icon-preview__frame" id="ar-icon-preview-frame"></div>
+                <button type="button" class="btn btn-sm" id="ar-icon-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-armor" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <!-- Races -->
+    <div id="panel-races" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--races">
+        <section class="editor-card editor-card--wide">
+          <h2 class="editor-card__title">Races du jeu &amp; portrait</h2>
+          <p class="editor-hint">
+            Les bonus (VIT / INT / END / DEF) viennent du catalogue. Tu peux ajouter une <strong>icône</strong> pour le portrait à la création du perso
+            (<code>nordhaven-editor-race-icons-v1</code>).
+          </p>
+          <div id="race-base-table" class="race-table"></div>
+        </section>
+        <section class="editor-card">
+          <h2 class="editor-card__title">Races ajoutées</h2>
+          <p class="editor-hint"><code>nordhaven-editor-races-extra-v1</code> — fusionnées avec le jeu (même identifiant = remplace les stats de base).</p>
+          <ul class="weapon-list" id="race-extra-list"></ul>
+          <h3 class="editor-subtitle">Nouvelle race</h3>
+          <form id="race-extra-form" class="weapon-form">
+            <label class="field">
+              <span class="field__label">Identifiant (lettres minuscules, chiffres, _)</span>
+              <input class="field__input" id="rx-id" maxlength="32" placeholder="ex: ayleid" />
+            </label>
+            <label class="field">
+              <span class="field__label">Nom affiché</span>
+              <input class="field__input" id="rx-label" maxlength="48" />
+            </label>
+            <div class="field-row">
+              <label class="field"><span class="field__label">VIT</span><input class="field__input" id="rx-vit" type="number" min="-3" max="5" value="0" /></label>
+              <label class="field"><span class="field__label">INT</span><input class="field__input" id="rx-int" type="number" min="-3" max="5" value="0" /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">END</span><input class="field__input" id="rx-end" type="number" min="-3" max="5" value="0" /></label>
+              <label class="field"><span class="field__label">DEF</span><input class="field__input" id="rx-def" type="number" min="-3" max="5" value="0" /></label>
+            </div>
+            <div class="field">
+              <span class="field__label">Icône portrait (optionnel)</span>
+              <input class="field__input" id="rx-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+            </div>
+            <button type="submit" class="btn editor-btn-primary">Ajouter la race</button>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-nav" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--races">
+        <section class="editor-card editor-card--wide">
+          <h2 class="editor-card__title">Icônes des boutons (village)</h2>
+          <p class="editor-hint">
+            Images affichées à gauche sur chaque action (Inventaire, Marchand, Forge, Auberge, Portail).
+            Clé <code>nordhaven-editor-nav-icons-v1</code> — PNG / JPEG / WebP / GIF, carré recommandé, ~400&nbsp;Ko max.
+          </p>
+          <div class="nav-icons-grid">
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Inventaire</h3>
+              <p class="field__hint">id&nbsp;: <code>inventory</code></p>
+              <input type="file" class="field__input" id="nav-icon-inventory-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-inventory-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-inventory-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-inventory-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Marchand</h3>
+              <p class="field__hint">id&nbsp;: <code>shop</code></p>
+              <input type="file" class="field__input" id="nav-icon-shop-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-shop-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-shop-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-shop-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Forge</h3>
+              <p class="field__hint">id&nbsp;: <code>forge</code></p>
+              <input type="file" class="field__input" id="nav-icon-forge-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-forge-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-forge-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-forge-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Auberge</h3>
+              <p class="field__hint">id&nbsp;: <code>inn</code></p>
+              <input type="file" class="field__input" id="nav-icon-inn-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-inn-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-inn-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-inn-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Portail</h3>
+              <p class="field__hint">id&nbsp;: <code>map</code></p>
+              <input type="file" class="field__input" id="nav-icon-map-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-map-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-map-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-map-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Or / Septims</h3>
+              <p class="field__hint">id&nbsp;: <code>gold</code></p>
+              <input type="file" class="field__input" id="nav-icon-gold-file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="nav-icons-preview" id="nav-icon-gold-wrap" hidden>
+                <div class="nav-icons-frame" id="nav-icon-gold-preview"></div>
+                <button type="button" class="btn btn-sm" id="nav-icon-gold-clear">Retirer</button>
+              </div>
+            </div>
+          </div>
+          <div class="editor-theme-card">
+            <h3 class="editor-subtitle">Theme competences (jeu)</h3>
+            <p class="editor-hint">Personnalise couleurs du panneau Competences (tableau + tooltip) dans le jeu. Cle <code>nordhaven-editor-skills-theme-v1</code>.</p>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Fond ligne</span><input class="field__input" id="skills-theme-row-bg" type="color" value="#1f1b16" /></label>
+              <label class="field"><span class="field__label">Bordure ligne</span><input class="field__input" id="skills-theme-row-border" type="color" value="#4b4337" /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Barre debut</span><input class="field__input" id="skills-theme-bar-start" type="color" value="#5a6e4a" /></label>
+              <label class="field"><span class="field__label">Barre fin</span><input class="field__input" id="skills-theme-bar-end" type="color" value="#8a9e6a" /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Texte nom</span><input class="field__input" id="skills-theme-text" type="color" value="#e8e0d4" /></label>
+              <label class="field"><span class="field__label">Texte niveau</span><input class="field__input" id="skills-theme-lvl" type="color" value="#c9a66b" /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Fond tooltip</span><input class="field__input" id="skills-theme-tip-bg" type="color" value="#221f1a" /></label>
+              <label class="field"><span class="field__label">Bordure tooltip</span><input class="field__input" id="skills-theme-tip-border" type="color" value="#433c31" /></label>
+            </div>
+            <div class="weapon-item__actions">
+              <button type="button" class="btn btn-sm" id="skills-theme-save">Enregistrer theme</button>
+              <button type="button" class="btn btn-sm" id="skills-theme-reset">Reinitialiser</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-skills" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--races">
+        <section class="editor-card editor-card--wide">
+          <h2 class="editor-card__title">Personnalisation des compétences</h2>
+          <p class="editor-hint">
+            Modifie le nom affiché, la description tooltip (HTML autorisé) et la texture associée.
+            Clé <code>nordhaven-editor-skills-v1</code>.
+          </p>
+          <div id="skills-editor-list" class="skills-editor-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-cursor" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--races">
+        <section class="editor-card editor-card--wide">
+          <h2 class="editor-card__title">Curseurs personnalisés</h2>
+          <p class="editor-hint">Définis le curseur par défaut et au survol des actions village. Clé <code>nordhaven-editor-cursors-v1</code>.</p>
+          <div class="nav-icons-grid">
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Classique</h3><p class="field__hint">id: <code>default</code></p><input type="file" class="field__input" id="cursor-default-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-default-wrap" hidden><div class="nav-icons-frame" id="cursor-default-preview"></div><button type="button" class="btn btn-sm" id="cursor-default-clear">Retirer</button></div></div>
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Inventaire</h3><p class="field__hint">id: <code>inventory</code></p><input type="file" class="field__input" id="cursor-inventory-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-inventory-wrap" hidden><div class="nav-icons-frame" id="cursor-inventory-preview"></div><button type="button" class="btn btn-sm" id="cursor-inventory-clear">Retirer</button></div></div>
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Marchand</h3><p class="field__hint">id: <code>shop</code></p><input type="file" class="field__input" id="cursor-shop-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-shop-wrap" hidden><div class="nav-icons-frame" id="cursor-shop-preview"></div><button type="button" class="btn btn-sm" id="cursor-shop-clear">Retirer</button></div></div>
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Forge</h3><p class="field__hint">id: <code>forge</code></p><input type="file" class="field__input" id="cursor-forge-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-forge-wrap" hidden><div class="nav-icons-frame" id="cursor-forge-preview"></div><button type="button" class="btn btn-sm" id="cursor-forge-clear">Retirer</button></div></div>
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Auberge</h3><p class="field__hint">id: <code>inn</code></p><input type="file" class="field__input" id="cursor-inn-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-inn-wrap" hidden><div class="nav-icons-frame" id="cursor-inn-preview"></div><button type="button" class="btn btn-sm" id="cursor-inn-clear">Retirer</button></div></div>
+            <div class="nav-icons-card"><h3 class="editor-subtitle">Portail</h3><p class="field__hint">id: <code>map</code></p><input type="file" class="field__input" id="cursor-map-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="cursor-map-wrap" hidden><div class="nav-icons-frame" id="cursor-map-preview"></div><button type="button" class="btn btn-sm" id="cursor-map-clear">Retirer</button></div></div>
+          </div>
+          <div class="editor-theme-card">
+            <h3 class="editor-subtitle">Illustration des villages</h3>
+            <p class="editor-hint">Image affichée au-dessus de la description du village. Clé <code>nordhaven-editor-village-art-v1</code>.</p>
+            <div class="nav-icons-grid">
+              <div class="nav-icons-card"><h3 class="editor-subtitle">Nordhaven</h3><input type="file" class="field__input" id="village-art-Nordhaven-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="village-art-Nordhaven-wrap" hidden><div class="nav-icons-frame" id="village-art-Nordhaven-preview"></div><button type="button" class="btn btn-sm" id="village-art-Nordhaven-clear">Retirer</button></div></div>
+              <div class="nav-icons-card"><h3 class="editor-subtitle">Corberoc</h3><input type="file" class="field__input" id="village-art-Corberoc-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="village-art-Corberoc-wrap" hidden><div class="nav-icons-frame" id="village-art-Corberoc-preview"></div><button type="button" class="btn btn-sm" id="village-art-Corberoc-clear">Retirer</button></div></div>
+              <div class="nav-icons-card"><h3 class="editor-subtitle">Fort-Aube</h3><input type="file" class="field__input" id="village-art-Fort-Aube-file" accept="image/png,image/jpeg,image/webp,image/gif" /><div class="nav-icons-preview" id="village-art-Fort-Aube-wrap" hidden><div class="nav-icons-frame" id="village-art-Fort-Aube-preview"></div><button type="button" class="btn btn-sm" id="village-art-Fort-Aube-clear">Retirer</button></div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-sounds" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--races">
+        <section class="editor-card editor-card--wide">
+          <h2 class="editor-card__title">Sons d&apos;interface (jeu)</h2>
+          <p class="editor-hint">
+            Fichiers courts (MP3, OGG, WAV&hellip;). Stockés dans <code>nordhaven-editor-sounds-v1</code>.
+            Le jeu les lit depuis le navigateur (aucun fichier sur le disque serveur).
+          </p>
+          <div class="nav-icons-grid">
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Clic bouton</h3>
+              <p class="field__hint">id: <code>buttonClick</code> — la plupart des boutons du jeu</p>
+              <input type="file" class="field__input" id="sound-buttonClick-file" accept="audio/*" />
+              <div class="nav-icons-preview" id="sound-buttonClick-wrap" hidden>
+                <audio class="sound-editor-preview" id="sound-buttonClick-audio" controls preload="metadata"></audio>
+                <button type="button" class="btn btn-sm" id="sound-buttonClick-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Boutons du village</h3>
+              <p class="field__hint">id: <code>villageButton</code> — inventaire, marchand, forge, auberge, portail (sinon <code>buttonClick</code>)</p>
+              <input type="file" class="field__input" id="sound-villageButton-file" accept="audio/*" />
+              <div class="nav-icons-preview" id="sound-villageButton-wrap" hidden>
+                <audio class="sound-editor-preview" id="sound-villageButton-audio" controls preload="metadata"></audio>
+                <button type="button" class="btn btn-sm" id="sound-villageButton-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Equiper</h3>
+              <p class="field__hint">id: <code>equip</code> — arme, armure ou collier</p>
+              <input type="file" class="field__input" id="sound-equip-file" accept="audio/*" />
+              <div class="nav-icons-preview" id="sound-equip-wrap" hidden>
+                <audio class="sound-editor-preview" id="sound-equip-audio" controls preload="metadata"></audio>
+                <button type="button" class="btn btn-sm" id="sound-equip-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="nav-icons-card">
+              <h3 class="editor-subtitle">Retirer l&apos;équipement</h3>
+              <p class="field__hint">id: <code>unequip</code></p>
+              <input type="file" class="field__input" id="sound-unequip-file" accept="audio/*" />
+              <div class="nav-icons-preview" id="sound-unequip-wrap" hidden>
+                <audio class="sound-editor-preview" id="sound-unequip-audio" controls preload="metadata"></audio>
+                <button type="button" class="btn btn-sm" id="sound-unequip-clear">Retirer</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-monsters" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card">
+          <h2 class="editor-card__title">Monstres du jeu (référence)</h2>
+          <p class="editor-hint">Base lue depuis les quêtes existantes.</p>
+          <ul class="ref-list" id="base-monster-list"></ul>
+        </section>
+        <section class="editor-card">
+          <h2 class="editor-card__title">Monstres personnalisés</h2>
+          <p class="editor-hint"><code>nordhaven-editor-monsters-v1</code></p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-monster">+ Nouveau monstre</button>
+          <ul class="weapon-list" id="monster-list"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="monster-form-section" hidden>
+          <h2 class="editor-card__title" id="monster-form-title">Monstre</h2>
+          <form id="monster-form" class="weapon-form">
+            <input type="hidden" id="mo-id" />
+            <label class="field">
+              <span class="field__label">Identifiant</span>
+              <input class="field__input" id="mo-id-input" maxlength="48" placeholder="ex: pillard_cramoisi" required />
+            </label>
+            <label class="field">
+              <span class="field__label">Nom affiché</span>
+              <input class="field__input" id="mo-name" maxlength="80" placeholder="ex: Pillard cramoisi" required />
+            </label>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Vie (HP)</span><input class="field__input" id="mo-hp" type="number" min="1" value="24" required /></label>
+              <label class="field"><span class="field__label">Défense</span><input class="field__input" id="mo-defense" type="number" min="0" value="1" required /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Vitesse d'attaque</span><input class="field__input" id="mo-atk-speed" type="number" min="0.2" max="8" step="0.1" value="1" required /></label>
+              <label class="field"><span class="field__label">XP combat</span><input class="field__input" id="mo-xp" type="number" min="1" value="20" required /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Dégâts min</span><input class="field__input" id="mo-atk-min" type="number" min="1" value="3" required /></label>
+              <label class="field"><span class="field__label">Dégâts max</span><input class="field__input" id="mo-atk-max" type="number" min="1" value="8" required /></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Or (combat)</span><input class="field__input" id="mo-gold" type="number" min="0" value="12" required /></label>
+              <label class="field"><span class="field__label">Loot (nom item)</span><input class="field__input" id="mo-loot" maxlength="64" placeholder="ex: Dent runique" /></label>
+            </div>
+            <div class="field">
+              <span class="field__label">Liste d'items existants (loot)</span>
+              <select class="field__input" id="mo-loot-scroll" size="7"></select>
+              <div class="weapon-item__actions">
+                <button type="button" class="btn btn-sm" id="mo-loot-pick-fixed">Mettre en loot fixe</button>
+                <button type="button" class="btn btn-sm" id="mo-loot-pick-table">Ajouter a la table (+25%)</button>
+              </div>
+            </div>
+            <label class="field">
+              <span class="field__label">Table de loot (%)</span>
+              <textarea class="field__input field__input--textarea" id="mo-loot-table" maxlength="500" placeholder="Dent runique:40&#10;Peau sombre:22&#10;Poudre d'os:8"></textarea>
+              <p class="field__hint">Une ligne par loot: <code>Nom:poids</code>. Les poids sont normalisés automatiquement pour totaliser 100%.</p>
+            </label>
+            <div class="field">
+              <span class="field__label">Texture portrait</span>
+              <input class="field__input" id="mo-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <div class="weapon-icon-preview" id="mo-icon-preview-wrap" hidden>
+                <div class="weapon-icon-preview__frame" id="mo-icon-preview-frame"></div>
+                <button type="button" class="btn btn-sm" id="mo-icon-clear">Retirer</button>
+              </div>
+            </div>
+            <div class="editor-sim" id="monster-sim">
+              <h3 class="editor-subtitle">Aperçu combat simulé</h3>
+              <p class="field__hint" id="monster-sim-text">Renseigne les stats pour voir une estimation.</p>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-monster" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+
+    <div id="panel-quests" class="editor-panels" hidden>
+      <div class="editor-layout editor-layout--triple">
+        <section class="editor-card">
+          <h2 class="editor-card__title">Quêtes du jeu (référence)</h2>
+          <p class="editor-hint">Base lue depuis les contrats existants.</p>
+          <ul class="ref-list" id="base-quest-list"></ul>
+        </section>
+        <section class="editor-card">
+          <h2 class="editor-card__title">Quêtes personnalisées</h2>
+          <p class="editor-hint"><code>nordhaven-editor-quests-v1</code></p>
+          <button type="button" class="btn editor-btn-primary" id="btn-new-quest">+ Nouvelle quête</button>
+          <ul class="weapon-list" id="quest-list"></ul>
+        </section>
+        <section class="editor-card editor-card--form" id="quest-form-section" hidden>
+          <h2 class="editor-card__title" id="quest-form-title">Quête</h2>
+          <form id="quest-form" class="weapon-form">
+            <input type="hidden" id="qu-id-hidden" />
+            <label class="field">
+              <span class="field__label">Identifiant</span>
+              <input class="field__input" id="qu-id" maxlength="48" placeholder="ex: q_contract_bruines" required />
+            </label>
+            <label class="field">
+              <span class="field__label">Nom de la quête</span>
+              <input class="field__input" id="qu-title" maxlength="80" required />
+            </label>
+            <label class="field">
+              <span class="field__label">Donneur de quête</span>
+              <input class="field__input" id="qu-giver" maxlength="64" placeholder="ex: Hilda, maitresse de l'auberge" required />
+            </label>
+            <label class="field">
+              <span class="field__label">Village du donneur</span>
+              <select class="field__input" id="qu-village">
+                <option value="Nordhaven">Nordhaven</option>
+                <option value="Corberoc">Corberoc</option>
+                <option value="Fort-Aube">Fort-Aube</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Description / accroche</span>
+              <textarea class="field__input field__input--textarea" id="qu-desc" maxlength="280" placeholder="Le donneur explique le danger et ce qu'il attend de toi."></textarea>
+            </label>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Zone cible</span><input class="field__input" id="qu-zone" maxlength="64" required /></label>
+              <label class="field"><span class="field__label">Monstre (nom)</span><input class="field__input" id="qu-monster" maxlength="80" required /></label>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <span class="field__label">Scroll-list zones</span>
+                <select class="field__input" id="qu-zone-scroll" size="7"></select>
+                <div class="weapon-item__actions">
+                  <button type="button" class="btn btn-sm" id="qu-zone-pick">Utiliser cette zone</button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field__label">Scroll-list mobs</span>
+                <select class="field__input" id="qu-monster-scroll" size="7"></select>
+                <div class="weapon-item__actions">
+                  <button type="button" class="btn btn-sm" id="qu-monster-pick">Utiliser ce mob</button>
+                </div>
+              </div>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Nombre d'ennemis</span><input class="field__input" id="qu-count" type="number" min="1" max="20" value="1" required /></label>
+              <label class="field"><span class="field__label">Répétable</span><select class="field__input" id="qu-repeatable"><option value="false">Non</option><option value="true">Oui</option></select></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span class="field__label">Récompense or (remise)</span><input class="field__input" id="qu-reward-gold" type="number" min="0" value="30" required /></label>
+              <label class="field"><span class="field__label">Loot de quête</span><input class="field__input" id="qu-reward-item" maxlength="64" placeholder="ex: Insigne de traqueur" /></label>
+            </div>
+            <div class="field">
+              <span class="field__label">Liste d'items existants (recompense de quete)</span>
+              <select class="field__input" id="qu-loot-scroll" size="7"></select>
+              <div class="weapon-item__actions">
+                <button type="button" class="btn btn-sm" id="qu-loot-pick">Utiliser cet item</button>
+              </div>
+            </div>
+            <div class="weapon-form__actions">
+              <button type="submit" class="btn editor-btn-primary">Enregistrer</button>
+              <button type="button" class="btn editor-btn-ghost" id="btn-cancel-quest" hidden>Annuler</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="editor-toast" id="editor-toast" role="status" hidden></div>
+  <script src="catalog.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

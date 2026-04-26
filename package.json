@@ -1,0 +1,16 @@
+{
+  "name": "nordhaven-chronicles-multiplayer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nordhaven Chronicles with Socket.IO chat and Google auth",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "google-auth-library": "^9.15.1",
+    "socket.io": "^4.8.1"
+  }
+}

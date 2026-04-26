@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nordhaven - Chronicles</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="skyrim-sky.css" />
+</head>
+<body>
+  <div class="skyrim-skycycle" aria-hidden="true">
+    <div class="sky-layer sky-layer--deep"></div>
+    <div class="sky-layer sky-layer--day"></div>
+    <div class="sky-layer sky-layer--warm"></div>
+    <div class="sky-layer sky-layer--night"></div>
+    <div class="sky-stars"></div>
+    <div class="sky-aurora"></div>
+    <div class="sky-glow sky-glow--sun"></div>
+  </div>
+  <div class="bg-vignette" aria-hidden="true"></div>
+  <section class="gate gate--open" id="login-gate" aria-live="polite">
+    <div class="gate__card">
+      <p class="gate__eyebrow">Nordhaven Chronicles</p>
+      <h2 class="gate__title">Menu principal</h2>
+      <p class="gate__lead">Connectez-vous avec Google, puis entrez dans votre partie.</p>
+      <div class="gate__google" id="google-login-gate-button"></div>
+      <p class="gate__status" id="gate-auth-status">Connexion requise.</p>
+      <button type="button" class="btn btn--primary gate__enter" id="gate-enter-btn" disabled>Entrer dans le jeu</button>
+    </div>
+  </section>
+  <div class="app">
+    <header class="topbar" role="banner">
+      <div class="topbar__brand">
+        <p class="topbar__eyebrow">RPG navigateur · nordique</p>
+        <h1 class="topbar__title">Nordhaven Chronicles</h1>
+      </div>
+      <div class="topbar__context">
+        <p class="topbar__subtitle" id="location-label">Creation du personnage</p>
+        <p class="topbar__tools"><a href="editor.html" class="topbar__link">Éditeur</a></p>
+        <div class="authbar" id="authbar">
+          <div id="google-login-button"></div>
+          <div class="authbar__connected" id="authbar-connected" hidden>
+            <span class="authbar__player" id="authbar-player"></span>
+            <button type="button" class="btn authbar__logout" id="authbar-logout">Déconnexion</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel--left">
+        <div class="panel__head">
+          <h2 class="panel__title" id="left-title">Creation</h2>
+        </div>
+        <div class="panel__body" id="left-content"></div>
+      </section>
+
+      <section class="panel panel--center">
+        <div class="panel__head">
+          <h2 class="panel__title" id="center-title">Scene</h2>
+        </div>
+        <div class="panel__body panel__body--large" id="center-content"></div>
+      </section>
+
+      <section class="panel panel--right">
+        <div class="panel__head">
+          <h2 class="panel__title" id="right-title">Journal</h2>
+        </div>
+        <div class="panel__body" id="right-content"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <aside class="mp-chat" id="mp-chat" aria-label="Tchat multijoueur">
+    <button class="mp-chat__toggle" id="mp-chat-toggle" type="button" aria-expanded="false" aria-controls="mp-chat-panel">
+      Tchat
+    </button>
+    <section class="mp-chat__panel" id="mp-chat-panel" hidden>
+      <header class="mp-chat__header">
+        <h2 class="mp-chat__title">Tchat multijoueur</h2>
+      </header>
+      <div class="mp-chat__messages" id="mp-chat-messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <form class="mp-chat__form" id="mp-chat-form">
+        <p class="mp-chat__auth-status" id="mp-chat-auth-status">Connectez-vous avec Google pour discuter.</p>
+        <label class="mp-chat__label" for="mp-chat-input">Message</label>
+        <div class="mp-chat__compose">
+          <input class="input mp-chat__input" id="mp-chat-input" name="message" type="text" maxlength="220" placeholder="Ecrire un message..." disabled />
+          <button class="btn btn--primary mp-chat__send" type="submit">Envoyer</button>
+        </div>
+      </form>
+    </section>
+  </aside>
+  <div id="skyui-root" class="skyui-root" aria-hidden="true"></div>
+  <script src="/config.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="catalog.js"></script>
+  <script src="game.js"></script>
+  <script src="multiplayer-chat.js"></script>
+</body>
+</html>
