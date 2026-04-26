@@ -1230,6 +1230,7 @@
   normalizeSaveState();
   state.mode = "menu";
   var authUser = null;
+  var profileSyncTimer = null;
 
   var els = {
     leftTitle: document.getElementById("left-title"),
@@ -1366,6 +1367,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (_) {}
+    queueProfileSnapshotSync();
   }
 
   function log(msg) {
@@ -1537,16 +1539,16 @@
     var backdropHtml = isDataUrlIcon(nordhavenArt)
       ? '<div class="mainmenu-backdrop" style="background-image:url(' + nordhavenArt + ');" aria-hidden="true"></div>'
       : '<div class="mainmenu-backdrop mainmenu-backdrop--fallback" aria-hidden="true"></div>';
-    els.location.textContent = "Accueil";
-    els.leftTitle.textContent = "Chroniques";
-    els.centerTitle.textContent = "Menu principal";
-    els.rightTitle.textContent = "Session";
+    els.location.textContent = "Hall principal";
+    els.leftTitle.textContent = "Le Monde";
+    els.centerTitle.textContent = "PORTAIL";
+    els.rightTitle.textContent = "Session joueur";
 
     els.left.innerHTML = [
       '<div class="mainmenu-lore card mainmenu-lore--v2">',
-      '<p class="mainmenu-lore__eyebrow">Nordhaven Chronicles</p>',
-      '<h3 class="mainmenu-lore__title">Le Nord attend un nom</h3>',
-      '<p class="mainmenu-lore__text">Les routes sont froides, les contrats sanglants, et les bourses legeres. Chaque depart ecrit une chronique.</p>',
+      '<p class="mainmenu-lore__eyebrow">Monde vivant</p>',
+      '<h3 class="mainmenu-lore__title">Le Nord t observe deja</h3>',
+      '<p class="mainmenu-lore__text">Les villages evoluent, les quetes tournent, les rumeurs changent a chaque retour en ville. Ce menu est ton seuil vers une chronique qui continue meme quand tu hesites.</p>',
       '<div class="mainmenu-lore__tags" aria-hidden="true">' +
       '<span class="mainmenu-tag">RPG narratif</span>' +
       '<span class="mainmenu-tag">Exploration</span>' +
@@ -1558,16 +1560,15 @@
     els.center.innerHTML = [
       backdropHtml,
       '<div class="mainmenu-panel">',
-      '<p class="mainmenu-panel__kicker">Sanctuaire du joueur</p>',
-      '<h2 class="mainmenu-panel__title">Menu principal</h2>',
+      '<p class="mainmenu-panel__kicker">Portail d entree</p>',
+      '<h2 class="mainmenu-panel__title">Choisis ta trace dans le Nord</h2>',
       '<p class="mainmenu-panel__lead">' +
         (hasLinkedCharacter
-          ? "Ce compte Google a deja un personnage. Charge ta partie pour continuer."
-          : "Choisis ton entree dans le monde.") +
+          ? "Ton compte Google porte deja un heros. Reprends ton histoire la ou tu l as laissee."
+          : "Connecte avec Google puis forge un heros pour entrer dans le monde.") +
       "</p>",
       '<div class="mainmenu-actions">',
       '<button type="button" class="btn btn--primary mainmenu-btn" id="menu-new"' + (hasLinkedCharacter ? " disabled" : "") + '>Creation de personnage</button>',
-      '<button type="button" class="btn mainmenu-btn" id="menu-login"' + (hasSave ? "" : " disabled") + '>Connexion / charger la partie</button>',
       (hasSave ? '<button type="button" class="btn mainmenu-btn" id="menu-continue">Continuer l\'aventure</button>' : ""),
       "</div>",
       "</div>"
@@ -1575,28 +1576,19 @@
 
     els.right.innerHTML = [
       '<div class="mainmenu-side card mainmenu-side--v2">',
-      '<h4 class="mainmenu-side__title">Etat de session</h4>',
+      '<h4 class="mainmenu-side__title">Etat du portail</h4>',
       (hasSave
         ? '<p class="mainmenu-side__line"><strong>Personnage :</strong> ' + escapeHtml(state.player.name) + '</p>' +
           '<p class="mainmenu-side__line"><strong>Niveau :</strong> ' + escapeHtml(String(state.player.level || 1)) + '</p>' +
           '<p class="mainmenu-side__line"><strong>Lieu :</strong> ' + escapeHtml(state.currentVillage || "Nordhaven") + "</p>"
         : '<p class="mainmenu-side__line muted">Aucune partie en cours. Cree un personnage pour commencer.</p>') +
-      '<p class="mainmenu-side__line muted">Astuce : tu peux revenir ici a tout moment pour lancer une nouvelle campagne.</p>' +
+      '<p class="mainmenu-side__line muted">Connexion Google requise pour creer un personnage et synchroniser la progression.</p>' +
       "</div>"
     ].join("");
 
     els.center.querySelector("#menu-new").addEventListener("click", function () {
       startFreshCharacterFlow();
     });
-
-    var loginBtn = els.center.querySelector("#menu-login");
-    if (loginBtn) {
-      loginBtn.addEventListener("click", function () {
-        if (!state.player) return;
-        showToast("Session chargee : " + state.player.name + ".");
-        setMode("village");
-      });
-    }
 
     var continueBtn = els.center.querySelector("#menu-continue");
     if (continueBtn) {
@@ -1669,16 +1661,16 @@
   function renderCreation() {
     els.location.textContent = "Creation du personnage";
     els.leftTitle.textContent = "Identite";
-    els.centerTitle.textContent = "Lignee et doctrine";
-    els.rightTitle.textContent = "Apercu du heros";
+    els.centerTitle.textContent = "Choix fondateurs";
+    els.rightTitle.textContent = "Apercu lisible";
 
     els.left.innerHTML = [
       '<div class="creation-shell card">',
       '<p class="creation-shell__eyebrow">Nouvelle campagne</p>',
-      '<h3 class="creation-shell__title">Forger un heros</h3>',
+      '<h3 class="creation-shell__title">Creation de personnage</h3>',
       '<label class="label" for="hero-name">Nom du personnage</label>',
       '<input class="input" id="hero-name" maxlength="24" placeholder="ex: Alrik Corbeaugris" />',
-      '<p class="creation-shell__hint muted">2 a 24 caracteres, lettres, espaces, apostrophes et tirets.</p>',
+      '<p class="creation-shell__hint muted">Simple, lisible, direct: 2 a 24 caracteres.</p>',
       '<div class="row row--tight">',
       '<button class="btn btn--primary" id="create-btn">Entrer dans Nordhaven</button>',
       '<button class="btn" id="back-menu-btn">Retour menu</button>',
@@ -1715,7 +1707,7 @@
       '<label><input type="radio" name="class" value="rodeur" /> Rodeur des plaines - endurance elevee</label>',
       "</div>",
       "</div>",
-      '<div class="muted">La race ajoute des bonus permanents. La classe fixe tes stats de depart.</div>'
+      '<div class="muted">Race = bonus permanents. Classe = style de jeu de depart.</div>'
     ].join("");
 
     var previewEl = document.createElement("div");
@@ -3832,10 +3824,41 @@
   function statTooltip(key) {
     var base = CLASSES[state.player.classId];
     var t = state.player.talents || { vitalite: 0, intelligence: 0, endurance: 0 };
-    if (key === "vitalite") return "Base : " + base.vitalite + " | Talents : +" + t.vitalite + " | Augmente les PV max (x2).";
-    if (key === "intelligence") return "Base : " + base.intelligence + " | Talents : +" + t.intelligence + " | Mana max, regen et sorts.";
-    if (key === "endurance") return "Base : " + base.endurance + " | Talents : +" + t.endurance + " | Degats physiques.";
+    if (key === "vitalite") return "Vitalite = survie. Base " + base.vitalite + ", talents +" + t.vitalite + ". Chaque point augmente fortement les PV max.";
+    if (key === "intelligence") return "Intelligence = magie. Base " + base.intelligence + ", talents +" + t.intelligence + ". Augmente mana max et puissance de sorts.";
+    if (key === "endurance") return "Endurance = impact physique. Base " + base.endurance + ", talents +" + t.endurance + ". Ameliore les degats constants en melee.";
     return "";
+  }
+
+  function queueProfileSnapshotSync() {
+    if (!authUser || !state.player) return;
+    if (profileSyncTimer) clearTimeout(profileSyncTimer);
+    profileSyncTimer = setTimeout(function () {
+      profileSyncTimer = null;
+      var race = getRaceById(state.player.raceId || "nordique");
+      var payload = {
+        level: Number(state.player.level) || 1,
+        iconUrl: race && race.iconDataUrl ? race.iconDataUrl : "",
+        stats: {
+          vitalite: Number(state.player.vitalite) || 0,
+          intelligence: Number(state.player.intelligence) || 0,
+          endurance: Number(state.player.endurance) || 0,
+          attackMin: Number(state.player.atkMin) || 0,
+          attackMax: Number(state.player.atkMax) || 0,
+          defense: Number(state.player.defense) || 0
+        },
+        stuff: {
+          weapon: state.equipped && state.equipped.weapon ? state.equipped.weapon : "",
+          armor: state.equipped && state.equipped.armor ? state.equipped.armor : "",
+          necklace: state.equipped && state.equipped.necklace ? state.equipped.necklace : ""
+        }
+      };
+      apiJson("/api/profile/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(function () {});
+    }, 350);
   }
 
   function getEquippedInventoryItem(slotId, name) {
@@ -4257,5 +4280,20 @@
   Promise.all([hydrateEditorDataFromServer(), hydrateCharacterFromAccount()]).then(function () {
     bindEditorUiSounds();
     render();
+    queueProfileSnapshotSync();
+  });
+
+  window.addEventListener("nordhaven:auth-changed", function (event) {
+    var user = event && event.detail ? event.detail.user : null;
+    authUser = user || null;
+    if (authUser && !state.player) {
+      hydrateCharacterFromAccount().then(function () {
+        render();
+        queueProfileSnapshotSync();
+      });
+      return;
+    }
+    if (state.mode === "menu" || state.mode === "creation") render();
+    queueProfileSnapshotSync();
   });
 })();

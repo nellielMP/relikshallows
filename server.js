@@ -178,6 +178,7 @@ async function appendChatMessage(user, text, characterName) {
     id: crypto.randomBytes(10).toString("hex"),
     userId: user.id,
     name: displayName,
+    avatarUrl: sanitizeText(user.avatarUrl || "", 500),
     text: cleanText,
     createdAt: Date.now()
   };
@@ -212,6 +213,36 @@ function publicUser(user) {
     email: user.email,
     avatarUrl: user.avatarUrl,
     hasCharacter: !!(user && user.character)
+  };
+}
+
+function buildPublicProfileFromUser(user) {
+  if (!user) return null;
+  const character = user.character && typeof user.character === "object" ? user.character : null;
+  const snap = user.profileSnapshot && typeof user.profileSnapshot === "object" ? user.profileSnapshot : null;
+  const stats = snap && snap.stats && typeof snap.stats === "object" ? snap.stats : {};
+  const stuff = snap && snap.stuff && typeof snap.stuff === "object" ? snap.stuff : {};
+  return {
+    userId: user.id,
+    playerName: sanitizeText((character && character.name) || user.name || "Joueur", 40) || "Joueur",
+    level: Math.max(1, Math.floor(Number((snap && snap.level) || 1) || 1)),
+    iconUrl: sanitizeText((snap && snap.iconUrl) || user.avatarUrl || "", 500),
+    raceId: sanitizeText((character && character.raceId) || "", 32),
+    classId: sanitizeText((character && character.classId) || "", 24),
+    stats: {
+      vitalite: Math.max(0, Math.floor(Number(stats.vitalite) || 0)),
+      intelligence: Math.max(0, Math.floor(Number(stats.intelligence) || 0)),
+      endurance: Math.max(0, Math.floor(Number(stats.endurance) || 0)),
+      attackMin: Math.max(0, Math.floor(Number(stats.attackMin) || 0)),
+      attackMax: Math.max(0, Math.floor(Number(stats.attackMax) || 0)),
+      defense: Math.max(0, Math.floor(Number(stats.defense) || 0))
+    },
+    stuff: {
+      weapon: sanitizeText(stuff.weapon || "", 60),
+      armor: sanitizeText(stuff.armor || "", 60),
+      necklace: sanitizeText(stuff.necklace || "", 60)
+    },
+    updatedAt: Number((snap && snap.updatedAt) || user.updatedAt || Date.now()) || Date.now()
   };
 }
 
@@ -333,6 +364,47 @@ app.post("/api/character", async (req, res) => {
   users[idx].updatedAt = Date.now();
   await writeJson(USERS_PATH, users);
   return res.status(201).json({ character: users[idx].character });
+});
+
+app.post("/api/profile/snapshot", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const stats = body.stats && typeof body.stats === "object" ? body.stats : {};
+  const stuff = body.stuff && typeof body.stuff === "object" ? body.stuff : {};
+  const profileSnapshot = {
+    level: Math.max(1, Math.floor(Number(body.level) || 1)),
+    iconUrl: sanitizeText(body.iconUrl || "", 500),
+    stats: {
+      vitalite: Math.max(0, Math.floor(Number(stats.vitalite) || 0)),
+      intelligence: Math.max(0, Math.floor(Number(stats.intelligence) || 0)),
+      endurance: Math.max(0, Math.floor(Number(stats.endurance) || 0)),
+      attackMin: Math.max(0, Math.floor(Number(stats.attackMin) || 0)),
+      attackMax: Math.max(0, Math.floor(Number(stats.attackMax) || 0)),
+      defense: Math.max(0, Math.floor(Number(stats.defense) || 0))
+    },
+    stuff: {
+      weapon: sanitizeText(stuff.weapon || "", 60),
+      armor: sanitizeText(stuff.armor || "", 60),
+      necklace: sanitizeText(stuff.necklace || "", 60)
+    },
+    updatedAt: Date.now()
+  };
+  const users = await readJson(USERS_PATH, []);
+  const idx = users.findIndex((u) => u.id === user.id);
+  if (idx < 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+  users[idx].profileSnapshot = profileSnapshot;
+  users[idx].updatedAt = Date.now();
+  await writeJson(USERS_PATH, users);
+  return res.json({ ok: true });
+});
+
+app.get("/api/profile/:userId", async (req, res) => {
+  const userId = sanitizeText(req.params && req.params.userId, 48);
+  if (!userId) return res.status(400).json({ error: "Utilisateur invalide" });
+  const user = await getUserById(userId);
+  if (!user) return res.status(404).json({ error: "Profil introuvable" });
+  return res.json({ profile: buildPublicProfileFromUser(user) });
 });
 
 app.post("/api/logout", (req, res) => {

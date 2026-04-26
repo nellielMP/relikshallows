@@ -13,7 +13,6 @@
   var form = document.getElementById("mp-chat-form");
   var messageInput = document.getElementById("mp-chat-input");
   var authStatusEl = document.getElementById("mp-chat-auth-status");
-  var googleButtonHost = document.getElementById("google-login-button");
   var gateGoogleButtonHost = document.getElementById("google-login-gate-button");
   var gateRoot = document.getElementById("login-gate");
   var gateStatusEl = document.getElementById("gate-auth-status");
@@ -21,6 +20,9 @@
   var authConnectedEl = document.getElementById("authbar-connected");
   var authPlayerEl = document.getElementById("authbar-player");
   var logoutBtn = document.getElementById("authbar-logout");
+  var profilePeekRoot = document.getElementById("player-peek");
+  var profilePeekBody = document.getElementById("player-peek-body");
+  var profilePeekClose = document.getElementById("player-peek-close");
 
   if (
     !toggleBtn ||
@@ -29,14 +31,16 @@
     !form ||
     !messageInput ||
     !authStatusEl ||
-    !googleButtonHost ||
     !gateGoogleButtonHost ||
     !gateRoot ||
     !gateStatusEl ||
     !gateEnterBtn ||
     !authConnectedEl ||
     !authPlayerEl ||
-    !logoutBtn
+    !logoutBtn ||
+    !profilePeekRoot ||
+    !profilePeekBody ||
+    !profilePeekClose
   ) {
     return;
   }
@@ -74,21 +78,72 @@
   function setAuthUi() {
     var logged = !!state.me;
     authConnectedEl.hidden = !logged;
-    googleButtonHost.hidden = logged;
     messageInput.disabled = !logged;
     gateEnterBtn.disabled = !logged;
 
     if (logged) {
-      authPlayerEl.textContent = "Connecte: " + sanitize(state.me.name);
+      authPlayerEl.textContent = "Connecte avec Google: " + sanitize(state.me.name);
       authStatusEl.textContent = "Vous discutez en tant que " + sanitize(state.me.name) + ".";
       messageInput.placeholder = "Ecrire un message...";
       gateStatusEl.textContent = "Connecte en tant que " + sanitize(state.me.name) + ".";
+      gateRoot.classList.remove("gate--open");
     } else {
       authPlayerEl.textContent = "";
       authStatusEl.textContent = "Connectez-vous avec Google pour discuter.";
       messageInput.placeholder = "Connexion Google requise";
       gateStatusEl.textContent = "Connexion requise.";
+      gateRoot.classList.add("gate--open");
     }
+    window.dispatchEvent(
+      new CustomEvent("nordhaven:auth-changed", {
+        detail: { user: state.me || null }
+      })
+    );
+  }
+
+  function profileRow(label, value) {
+    return (
+      '<div class="player-peek__row"><span class="player-peek__k">' +
+      sanitize(label) +
+      '</span><span class="player-peek__v">' +
+      sanitize(value || "—") +
+      "</span></div>"
+    );
+  }
+
+  function openProfilePeek(profile) {
+    if (!profile) return;
+    var icon = profile.iconUrl
+      ? '<img class="player-peek__avatar-img" src="' + sanitize(profile.iconUrl) + '" alt="" />'
+      : '<span class="player-peek__avatar-fallback" aria-hidden="true">👤</span>';
+    var stuff = profile.stuff || {};
+    var stats = profile.stats || {};
+    profilePeekBody.innerHTML = [
+      '<header class="player-peek__head">',
+      '<div class="player-peek__avatar">' + icon + "</div>",
+      '<div class="player-peek__meta">',
+      '<h3 class="player-peek__name">' + sanitize(profile.playerName || "Joueur") + "</h3>",
+      '<p class="player-peek__lvl">Niveau ' + sanitize(String(profile.level || 1)) + "</p>",
+      "</div>",
+      "</header>",
+      '<section class="player-peek__section"><h4 class="player-peek__title">Stats</h4>',
+      profileRow("Vitalite", stats.vitalite),
+      profileRow("Intelligence", stats.intelligence),
+      profileRow("Endurance", stats.endurance),
+      profileRow("Degats", String(stats.attackMin || 0) + " - " + String(stats.attackMax || 0)),
+      profileRow("Defense", stats.defense),
+      "</section>",
+      '<section class="player-peek__section"><h4 class="player-peek__title">Equipement</h4>',
+      profileRow("Arme", stuff.weapon || "Aucune"),
+      profileRow("Armure", stuff.armor || "Aucune"),
+      profileRow("Collier", stuff.necklace || "Aucun"),
+      "</section>"
+    ].join("");
+    profilePeekRoot.hidden = false;
+  }
+
+  function closeProfilePeek() {
+    profilePeekRoot.hidden = true;
   }
 
   function renderMessage(item) {
@@ -98,7 +153,24 @@
 
     var meta = document.createElement("div");
     meta.className = "mp-chat__meta";
-    meta.textContent = sanitize(item.name) + " · " + fmtTime(item.createdAt);
+    var nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "mp-chat__name";
+    nameBtn.textContent = sanitize(item.name);
+    nameBtn.addEventListener("click", function () {
+      api("/api/profile/" + encodeURIComponent(item.userId))
+        .then(function (data) {
+          if (data && data.profile) openProfilePeek(data.profile);
+        })
+        .catch(function () {
+          authStatusEl.textContent = "Profil joueur indisponible.";
+        });
+    });
+    var when = document.createElement("span");
+    when.className = "mp-chat__time";
+    when.textContent = " · " + fmtTime(item.createdAt);
+    meta.appendChild(nameBtn);
+    meta.appendChild(when);
 
     var txt = document.createElement("p");
     txt.className = "mp-chat__text";
@@ -200,12 +272,6 @@
       }
     });
 
-    window.google.accounts.id.renderButton(googleButtonHost, {
-      theme: "outline",
-      size: "medium",
-      shape: "pill",
-      text: "signin_with"
-    });
     window.google.accounts.id.renderButton(gateGoogleButtonHost, {
       theme: "filled_black",
       size: "large",
@@ -273,6 +339,10 @@
   gateEnterBtn.addEventListener("click", function () {
     if (!state.me) return;
     gateRoot.classList.remove("gate--open");
+  });
+  profilePeekClose.addEventListener("click", closeProfilePeek);
+  profilePeekRoot.addEventListener("click", function (event) {
+    if (event.target === profilePeekRoot) closeProfilePeek();
   });
 
   setAuthUi();

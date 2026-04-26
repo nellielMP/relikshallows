@@ -38,7 +38,6 @@
         <p class="topbar__subtitle" id="location-label">Creation du personnage</p>
         <p class="topbar__tools"><a href="editor.html" class="topbar__link">Éditeur</a></p>
         <div class="authbar" id="authbar">
-          <div id="google-login-button"></div>
           <div class="authbar__connected" id="authbar-connected" hidden>
             <span class="authbar__player" id="authbar-player"></span>
             <button type="button" class="btn authbar__logout" id="authbar-logout">Déconnexion</button>
@@ -91,6 +90,12 @@
       </form>
     </section>
   </aside>
+  <section class="player-peek" id="player-peek" hidden aria-live="polite">
+    <div class="player-peek__card">
+      <button class="player-peek__close" id="player-peek-close" type="button" aria-label="Fermer">×</button>
+      <div class="player-peek__body" id="player-peek-body"></div>
+    </div>
+  </section>
   <div id="skyui-root" class="skyui-root" aria-hidden="true"></div>
   <script src="/config.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
