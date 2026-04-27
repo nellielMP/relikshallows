@@ -11,9 +11,11 @@ const { MongoClient } = require("mongodb");
 
 function loadDotEnvFile() {
   const candidateFiles = [".env", "server_token.env"];
+  const loadedFiles = [];
   candidateFiles.forEach((fileName) => {
     const envPath = path.join(__dirname, fileName);
     if (!fsSync.existsSync(envPath)) return;
+    loadedFiles.push(fileName);
     const raw = fsSync.readFileSync(envPath, "utf-8");
     raw.split(/\r?\n/).forEach((line) => {
       const trimmed = line.trim();
@@ -26,9 +28,10 @@ function loadDotEnvFile() {
       process.env[key] = value;
     });
   });
+  return loadedFiles;
 }
 
-loadDotEnvFile();
+const LOADED_ENV_FILES = loadDotEnvFile();
 
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_COOKIE = "nordhaven_sid";
@@ -134,6 +137,21 @@ async function connectMongo() {
   if (!MONGODB_URI) {
     throw new Error("MONGODB_URI manquant");
   }
+  const uriPrefix = String(MONGODB_URI).split("://")[0] || "(none)";
+  const hasMongoScheme = MONGODB_URI.startsWith("mongodb://") || MONGODB_URI.startsWith("mongodb+srv://");
+  console.log(
+    "[startup] env files found:",
+    LOADED_ENV_FILES.length ? LOADED_ENV_FILES.join(", ") : "none"
+  );
+  console.log(
+    "[startup] mongo env check:",
+    JSON.stringify({
+      hasMongoUri: Boolean(MONGODB_URI),
+      uriPrefix,
+      hasValidScheme: hasMongoScheme,
+      dbName: MONGODB_DB_NAME || "(empty)"
+    })
+  );
   const client = new MongoClient(MONGODB_URI);
   await client.connect();
   db = client.db(MONGODB_DB_NAME);
