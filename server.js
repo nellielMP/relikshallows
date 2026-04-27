@@ -23,7 +23,12 @@ function loadDotEnvFile() {
       const sep = trimmed.indexOf("=");
       if (sep < 0) return;
       const key = trimmed.slice(0, sep).trim();
-      const value = trimmed.slice(sep + 1).trim();
+      let value = trimmed.slice(sep + 1).trim();
+      // Tolerate accidental duplicated assignment like:
+      // MONGODB_URI=MONGODB_URI=mongodb+srv://...
+      if (value.startsWith(key + "=")) {
+        value = value.slice((key + "=").length).trim();
+      }
       if (!key || process.env[key] != null) return;
       process.env[key] = value;
     });
