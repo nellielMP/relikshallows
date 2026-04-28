@@ -41,7 +41,17 @@ const LOADED_ENV_FILES = loadDotEnvFile();
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_COOKIE = "nordhaven_sid";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const MONGODB_URI = process.env.MONGODB_URI || "";
+function normalizeMongoUri(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "";
+  // Tolerate provider env values like:
+  // MONGODB_URI=mongodb+srv://...
+  if (raw.startsWith("MONGODB_URI=")) {
+    return raw.slice("MONGODB_URI=".length).trim();
+  }
+  return raw;
+}
+const MONGODB_URI = normalizeMongoUri(process.env.MONGODB_URI);
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "nordhaven";
 const ADMIN_GOOGLE_EMAILS = new Set(
   String(process.env.ADMIN_GOOGLE_EMAILS || "")
