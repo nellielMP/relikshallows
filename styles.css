@@ -270,8 +270,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 3.45rem;
-  padding: 0.16rem 0.45rem;
+  min-width: 2.35rem;
+  padding: 0.14rem 0.35rem;
   border-radius: 999px;
   border: 1px solid rgba(130, 112, 160, 0.7);
   background: linear-gradient(180deg, rgba(58, 42, 80, 0.78), rgba(34, 24, 52, 0.88));
@@ -280,6 +280,17 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.42);
+}
+
+.topbar-level__sigil {
+  color: #d5b9ff;
+  font-size: 0.7rem;
+  margin-right: 0.2rem;
+}
+
+.topbar-level__num {
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .topbar-xp__label {
@@ -368,6 +379,10 @@ body {
 .starter-tuto__dismiss {
   margin-top: 0.45rem;
   width: 100%;
+}
+
+.starter-tuto--reopen .starter-tuto__dismiss {
+  margin-top: 0.2rem;
 }
 
 .topbar__tools {
@@ -3085,6 +3100,56 @@ body.skyui-open {
   padding: 0.6rem 0.65rem 0.7rem;
 }
 
+.hero-sheet--v2 {
+  border-color: #6a5a44;
+  background:
+    radial-gradient(circle at top right, rgba(112, 85, 45, 0.16), transparent 45%),
+    linear-gradient(150deg, rgba(34, 27, 17, 0.72), rgba(14, 12, 9, 0.94));
+}
+
+.hero-sheet__header--v2 {
+  grid-template-columns: 3.6rem 1fr auto;
+}
+
+.hero-sheet__id--v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.hero-sheet__head-tools--v2 {
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.hero-sheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.13rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(123, 106, 75, 0.7);
+  background: rgba(36, 29, 17, 0.72);
+  color: #e4d2ad;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero-chip--muted {
+  color: #c7b99a;
+  border-color: rgba(96, 85, 66, 0.65);
+}
+
+.hero-sheet__micro-bars--v2 {
+  grid-column: 1 / -1;
+}
+
 .hero-sheet__header {
   display: grid;
   grid-template-columns: 3.6rem 1fr;
@@ -5528,6 +5593,10 @@ body.body--menu .panel--center .panel__body {
   border: 1px solid rgba(95, 82, 60, 0.55);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.2);
+}
+
+.mp-chat__emoji-panel[hidden] {
+  display: none;
 }
 
 .mp-chat__emoji-btn {

@@ -3,6 +3,7 @@
 
   var STORAGE_KEY = "nordhaven-save-v3";
   var STARTING_GOLD = 1000;
+  var HERO_SHEET_VARIANT = "v2"; // set "legacy" to restore the previous sheet exactly
   var NAME_RE = /^[A-Za-zÀ-ÿ' -]{2,24}$/;
   var combatAutoRafId = null;
   var LEGACY_RESET_MARKER = "nordhaven-editor-legacy-reset-v1";
@@ -981,7 +982,7 @@
     return lines[villageId] || lines.Nordhaven;
   }
 
-  function buildHeroSheetVillageHtml() {
+  function buildHeroSheetVillageHtmlLegacy() {
     var player = state.player;
     var classData = CLASSES[player.classId];
     var rInfo = getRaceById(player.raceId || "nordique");
@@ -1075,6 +1076,98 @@
       "</section>",
       "</div>"
     ].join("");
+  }
+
+  function buildHeroSheetVillageHtmlV2() {
+    var player = state.player;
+    var classData = CLASSES[player.classId];
+    var atkRange = player.atkMin + "-" + player.atkMax;
+    var rInfo = getRaceById(player.raceId || "nordique");
+    var portraitHtml = isDataUrlIcon(rInfo.iconDataUrl)
+      ? '<div class="hero-sheet__portrait" aria-hidden="true"><img class="hero-sheet__portrait-img" src="' +
+        rInfo.iconDataUrl +
+        '" alt=""/></div>'
+      : '<div class="hero-sheet__portrait hero-sheet__portrait--empty" aria-hidden="true"></div>';
+    return [
+      '<div class="hero-sheet hero-sheet--v2">',
+      '<header class="hero-sheet__header hero-sheet__header--v2">',
+      portraitHtml,
+      '<div class="hero-sheet__id hero-sheet__id--v2">',
+      '<h3 class="hero-sheet__name">' + escapeHtml(player.name) + "</h3>",
+      '<p class="hero-sheet__class">' + classData.label + " · " + escapeHtml(rInfo.label) + "</p>",
+      '<div class="hero-sheet__chips">',
+      '<span class="hero-chip">DEF ' + player.defense + "</span>",
+      '<span class="hero-chip hero-chip--muted">ATK ' + atkRange + "</span>",
+      '<span class="hero-chip hero-chip--muted">MANA ' + Math.floor(player.magie) + "</span>",
+      "</div>",
+      "</div>",
+      '<div class="hero-sheet__head-tools hero-sheet__head-tools--v2">' +
+      '<button type="button" class="hero-sheet__skills-btn" id="open-skills-btn">Competences</button>' +
+      "</div>",
+      '<div class="hero-sheet__micro-bars hero-sheet__micro-bars--v2" title="Vie et mana" aria-label="Vie et mana">' +
+      '<div class="hero-micro-block">' +
+      '<div class="hero-micro-block__head"><span class="hero-micro-block__label">PV</span><span class="hero-micro-block__nums">' +
+      Math.floor(player.hp) +
+      " / " +
+      Math.floor(player.hpMax) +
+      '</span></div><div class="hero-micro-track hero-micro-track--hp"><span style="width:' +
+      pct(player.hp, player.hpMax) +
+      '%"></span></div></div>' +
+      '<div class="hero-micro-block">' +
+      '<div class="hero-micro-block__head"><span class="hero-micro-block__label">Mana</span><span class="hero-micro-block__nums">' +
+      Math.floor(player.magie) +
+      " / " +
+      Math.floor(player.magieMax) +
+      '</span></div><div class="hero-micro-track hero-micro-track--mp"><span style="width:' +
+      pct(player.magie, player.magieMax) +
+      '%"></span></div></div>' +
+      "</div>",
+      "</header>",
+      '<section class="hero-sheet__section" aria-label="Talents">',
+      '<p class="hero-sheet__talents">Points de talent disponibles : <strong>' + player.talentPoints + "</strong></p>",
+      "</section>",
+      '<section class="hero-sheet__section" aria-label="Attributs">',
+      '<h4 class="hero-sheet__section-title">Attributs</h4>',
+      '<div class="hero-sheet__stats hero-sheet__stats--tri">',
+      statBox("vitalite", "VIT", "Vitalite", player.vitalite),
+      statBox("intelligence", "INT", "Intelligence", player.intelligence),
+      statBox("endurance", "END", "Endurance", player.endurance),
+      "</div>",
+      "</section>",
+      '<section class="hero-sheet__section" aria-label="Equipement">',
+      '<h4 class="hero-sheet__section-title">Equipement</h4>',
+      '<div class="hero-equip-banner">' +
+      '<span class="hero-equip-banner__label">Protection</span>' +
+      '<span class="hero-equip-banner__val">' +
+      player.defense +
+      "</span>" +
+      '<span class="hero-equip-banner__hint">Armure + collier</span>' +
+      "</div>" +
+      '<div class="hero-equip hero-equip--sheet">' +
+      '<div class="hero-equip-panel hero-equip-panel--weapon">' +
+      '<span class="hero-equip-panel__eyebrow">Main principale</span>' +
+      equipSlotHtml("weapon", state.equipped.weapon, "Arme") +
+      heroEquipMetaLine("weapon", state.equipped.weapon, "Aucune arme equipee") +
+      "</div>" +
+      '<div class="hero-equip-panel hero-equip-panel--armor">' +
+      '<span class="hero-equip-panel__eyebrow">Corps</span>' +
+      equipSlotHtml("armor", state.equipped.armor, "Armure") +
+      heroEquipMetaLine("armor", state.equipped.armor, "Aucune armure equipee") +
+      "</div>" +
+      '<div class="hero-equip-panel hero-equip-panel--armor">' +
+      '<span class="hero-equip-panel__eyebrow">Collier</span>' +
+      equipSlotHtml("necklace", state.equipped.necklace, "Collier") +
+      heroEquipMetaLine("necklace", state.equipped.necklace, "Aucun collier equipe") +
+      "</div>" +
+      "</div>" +
+      "</section>",
+      "</div>"
+    ].join("");
+  }
+
+  function buildHeroSheetVillageHtml() {
+    if (HERO_SHEET_VARIANT === "legacy") return buildHeroSheetVillageHtmlLegacy();
+    return buildHeroSheetVillageHtmlV2();
   }
 
   function barRow(id, label, cur, max, barClass) {
@@ -1254,6 +1347,22 @@
     );
   }
 
+  function buildStarterTutorialReopenHtml() {
+    ensureTutorialState();
+    if (!state.player || state.mode !== "village") return "";
+    if (!state.tutorial.dismissed) return "";
+    if (tutorialProgressCount() >= 3) return "";
+    return (
+      '<section class="journal-section starter-tuto starter-tuto--reopen" aria-label="Rouvrir mini tutoriel">' +
+      '<div class="starter-tuto__head">' +
+      '<h4 class="journal-section__title">Mini tuto masque</h4>' +
+      '<span class="starter-tuto__progress">' + String(tutorialProgressCount()) + "/3</span>" +
+      "</div>" +
+      '<button type="button" class="btn starter-tuto__dismiss" id="starter-tuto-reopen">Rouvrir le mini tuto</button>' +
+      "</section>"
+    );
+  }
+
   resetLegacyQuestsMonstersOnce();
   var state = loadState() || makeInitialState();
   normalizeSaveState();
@@ -1306,9 +1415,11 @@
       '" role="menu">' +
       '<button type="button" class="topbar-settings__action" id="topbar-reset-character" role="menuitem">Reset perso</button>' +
       "</span></span>" +
-      '<span class="topbar-xp"><span class="topbar-level">Niv. ' +
+      '<span class="topbar-xp"><span class="topbar-level" aria-label="Niveau">' +
+      '<span class="topbar-level__sigil" aria-hidden="true">✦</span>' +
+      '<span class="topbar-level__num">' +
       String(level) +
-      '</span><span class="topbar-xp__label">XP ' +
+      '</span></span><span class="topbar-xp__label">XP ' +
       String(xpNow) +
       "/" +
       String(xpNext) +
@@ -1993,7 +2104,7 @@
       });
     })();
 
-    els.right.innerHTML = buildStarterTutorialHtml() + buildJournalVillageHtml();
+    els.right.innerHTML = buildStarterTutorialHtml() + buildStarterTutorialReopenHtml() + buildJournalVillageHtml();
 
     bindTalentButtons();
 
@@ -2004,6 +2115,15 @@
       dismissTutoBtn.addEventListener("click", function () {
         ensureTutorialState();
         state.tutorial.dismissed = true;
+        saveState();
+        render();
+      });
+    }
+    var reopenTutoBtn = els.right.querySelector("#starter-tuto-reopen");
+    if (reopenTutoBtn) {
+      reopenTutoBtn.addEventListener("click", function () {
+        ensureTutorialState();
+        state.tutorial.dismissed = false;
         saveState();
         render();
       });
