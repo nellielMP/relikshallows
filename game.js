@@ -984,7 +984,6 @@
   function buildHeroSheetVillageHtml() {
     var player = state.player;
     var classData = CLASSES[player.classId];
-    var atkRange = player.atkMin + "-" + player.atkMax;
     var rInfo = getRaceById(player.raceId || "nordique");
     var portraitHtml = isDataUrlIcon(rInfo.iconDataUrl)
       ? '<div class="hero-sheet__portrait" aria-hidden="true"><img class="hero-sheet__portrait-img" src="' +
@@ -1006,10 +1005,6 @@
       '<button type="button" class="hero-sheet__skills-btn" id="open-skills-btn">Competences</button>' +
       "</div>" +
       "</div>" +
-      '<div class="hero-sheet__badges">',
-      '<span class="hero-badge">Niv. ' + player.level + "</span>",
-      '<span class="hero-badge hero-badge--muted">Degats ' + atkRange + "</span>",
-      "</div>",
       "</div>",
       '<div class="hero-sheet__micro-bars" title="Vie et mana" aria-label="Vie et mana">' +
       '<div class="hero-micro-block">' +
@@ -1204,6 +1199,61 @@
     );
   }
 
+  function ensureTutorialState() {
+    if (!state.tutorial || typeof state.tutorial !== "object") {
+      state.tutorial = { firstQuestAccepted: false, firstItemBought: false, firstQuestCompleted: false, dismissed: false };
+    }
+    if (typeof state.tutorial.firstQuestAccepted !== "boolean") state.tutorial.firstQuestAccepted = false;
+    if (typeof state.tutorial.firstItemBought !== "boolean") state.tutorial.firstItemBought = false;
+    if (typeof state.tutorial.firstQuestCompleted !== "boolean") state.tutorial.firstQuestCompleted = false;
+    if (typeof state.tutorial.dismissed !== "boolean") state.tutorial.dismissed = false;
+  }
+
+  function tutorialProgressCount() {
+    ensureTutorialState();
+    var done = 0;
+    if (state.tutorial.firstQuestAccepted) done += 1;
+    if (state.tutorial.firstItemBought) done += 1;
+    if (state.tutorial.firstQuestCompleted) done += 1;
+    return done;
+  }
+
+  function shouldShowStarterTutorial() {
+    ensureTutorialState();
+    if (!state.player || state.mode !== "village") return false;
+    if (state.tutorial.dismissed) return false;
+    return tutorialProgressCount() < 3;
+  }
+
+  function buildStarterTutorialHtml() {
+    if (!shouldShowStarterTutorial()) return "";
+    var done = tutorialProgressCount();
+    var total = 3;
+    var li = function (label, ok) {
+      return (
+        '<li class="starter-tuto__item' + (ok ? " is-done" : "") + '">' +
+        '<span class="starter-tuto__dot" aria-hidden="true">' + (ok ? "✓" : "•") + "</span>" +
+        '<span class="starter-tuto__label">' + escapeHtml(label) + "</span>" +
+        "</li>"
+      );
+    };
+    return (
+      '<section class="journal-section starter-tuto" aria-label="Mini tutoriel">' +
+      '<div class="starter-tuto__head">' +
+      '<h4 class="journal-section__title">Mini tuto: premiers pas</h4>' +
+      '<span class="starter-tuto__progress">' + String(done) + "/" + String(total) + "</span>" +
+      "</div>" +
+      '<p class="starter-tuto__hint muted">Petit guide de demarrage rapide pour ton nouveau perso.</p>' +
+      '<ul class="starter-tuto__list">' +
+      li("Accepter ta premiere quete (Auberge)", state.tutorial.firstQuestAccepted) +
+      li("Acheter ton premier item (Marchand)", state.tutorial.firstItemBought) +
+      li("Terminer et rendre ta premiere quete", state.tutorial.firstQuestCompleted) +
+      "</ul>" +
+      '<button type="button" class="btn starter-tuto__dismiss" id="starter-tuto-dismiss">Masquer</button>' +
+      "</section>"
+    );
+  }
+
   resetLegacyQuestsMonstersOnce();
   var state = loadState() || makeInitialState();
   normalizeSaveState();
@@ -1230,7 +1280,7 @@
 
   function renderTopbarResources() {
     if (!els.topbarResources) return;
-    if (!state.player) {
+    if (!state.player || state.mode === "menu") {
       els.topbarResources.innerHTML = "";
       topbarSettingsOpen = false;
       return;
@@ -1238,6 +1288,7 @@
     var xpNow = Math.floor(state.player.xp || 0);
     var xpNext = Math.max(1, Math.floor(state.player.xpToNext || 1));
     var xpPct = pct(xpNow, xpNext);
+    var level = Math.max(1, Math.floor(state.player.level || 1));
     els.topbarResources.innerHTML =
       '<span class="topbar-gold" title="' +
       String(state.gold) +
@@ -1255,7 +1306,9 @@
       '" role="menu">' +
       '<button type="button" class="topbar-settings__action" id="topbar-reset-character" role="menuitem">Reset perso</button>' +
       "</span></span>" +
-      '<span class="topbar-xp"><span class="topbar-xp__label">XP ' +
+      '<span class="topbar-xp"><span class="topbar-level">Niv. ' +
+      String(level) +
+      '</span><span class="topbar-xp__label">XP ' +
       String(xpNow) +
       "/" +
       String(xpNext) +
@@ -1348,6 +1401,7 @@
       questStage: "none",
       completedQuestIds: [],
       combat: null,
+      tutorial: { firstQuestAccepted: false, firstItemBought: false, firstQuestCompleted: false, dismissed: false },
       log: ["Le vent froid traverse les palissades de Nordhaven..."]
     };
   }
@@ -1445,6 +1499,7 @@
     if (typeof state.shopStockRefreshAt !== "number") state.shopStockRefreshAt = 0;
     if (typeof state.questsTier2Unlocked !== "boolean") state.questsTier2Unlocked = false;
     if (typeof state.wildCooldownUntil !== "number") state.wildCooldownUntil = 0;
+    ensureTutorialState();
   }
 
   function saveState() {
@@ -1521,6 +1576,8 @@
   }
 
   function render() {
+    var mpChatRoot = document.getElementById("mp-chat");
+    if (mpChatRoot) mpChatRoot.hidden = state.mode === "menu";
     if (state.mode !== "combat") stopCombatAutoLoop();
     document.body.classList.toggle("body--combat", state.mode === "combat");
     document.body.classList.remove("body--menu");
@@ -1553,6 +1610,7 @@
     state.questStage = "none";
     state.completedQuestIds = [];
     state.combat = null;
+    state.tutorial = { firstQuestAccepted: false, firstItemBought: false, firstQuestCompleted: false, dismissed: false };
     state.log = ["Le vent froid traverse les palissades de Nordhaven..."];
     saveState();
     render();
@@ -1935,12 +1993,21 @@
       });
     })();
 
-    els.right.innerHTML = buildJournalVillageHtml();
+    els.right.innerHTML = buildStarterTutorialHtml() + buildJournalVillageHtml();
 
     bindTalentButtons();
 
     var skillsBtn = els.left.querySelector("#open-skills-btn");
     if (skillsBtn) skillsBtn.addEventListener("click", openCompetencesSkyui);
+    var dismissTutoBtn = els.right.querySelector("#starter-tuto-dismiss");
+    if (dismissTutoBtn) {
+      dismissTutoBtn.addEventListener("click", function () {
+        ensureTutorialState();
+        state.tutorial.dismissed = true;
+        saveState();
+        render();
+      });
+    }
 
     els.center.querySelector("#open-inventory-btn").addEventListener("click", openInventorySkyui);
     els.center.querySelector("#open-shop").addEventListener("click", function () {
@@ -2557,6 +2624,8 @@
           invPush.iconDataUrl = it.iconDataUrl;
         }
         state.inventory.push(invPush);
+        ensureTutorialState();
+        state.tutorial.firstItemBought = true;
         playMerchantBuyAnimation(btn);
         log("Achat : " + it.name + " (" + price + " septims).");
         recalcDerivedStats();
@@ -3565,6 +3634,8 @@
     if (!q.repeatable) state.completedQuestIds.push(q.id);
     state.activeQuestId = null;
     state.questStage = "none";
+    ensureTutorialState();
+    state.tutorial.firstQuestCompleted = true;
     log("Quete remise a " + q.giver + ". +" + gainedGold + " septims.");
     maybeUnlockTier2Quests();
     showToast("Quete terminee: " + q.title + " !");
@@ -4176,6 +4247,8 @@
         if (!questId) return;
         state.activeQuestId = questId;
         state.questStage = "accepted";
+        ensureTutorialState();
+        state.tutorial.firstQuestAccepted = true;
         var qq = currentQuest();
         if (qq) {
           log("Quete acceptee: " + qq.title + ".");
@@ -4268,10 +4341,11 @@
       })
         .then(function (data) {
           state.gold -= 10;
-          guildState = { guild: data.guild, role: data.role || "chief" };
           saveState();
-          showToast("Guilde creee: " + data.guild.name + ".");
-          close();
+          loadMyGuildState().then(function () {
+            showToast("Guilde creee: " + data.guild.name + ".");
+            close();
+          });
         })
         .catch(function (err) {
           showToast(err.message || "Creation impossible.", true);
@@ -4286,9 +4360,10 @@
         body: JSON.stringify({ name: nm })
       })
         .then(function (data) {
-          guildState = { guild: data.guild, role: data.role || "member" };
-          showToast("Tu as rejoint " + data.guild.name + ".");
-          close();
+          loadMyGuildState().then(function () {
+            showToast("Tu as rejoint " + data.guild.name + ".");
+            close();
+          });
         })
         .catch(function (err) {
           showToast(err.message || "Rejoindre impossible.", true);
@@ -4519,7 +4594,7 @@
       });
       return;
     }
-    if (state.mode === "menu" || state.mode === "creation" || state.mode === "village") render();
+    setMode("menu");
     queueProfileSnapshotSync();
   });
 })();

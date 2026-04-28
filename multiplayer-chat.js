@@ -55,6 +55,7 @@
   };
   var gateDismissed = localStorage.getItem("nordhaven-gate-dismissed") === "1";
   var googleReady = false;
+  var menuGoogleRendered = false;
 
   var socket = null;
 
@@ -207,7 +208,11 @@
     var panel = document.createElement("div");
     panel.className = "mp-chat__emoji-panel";
     panel.hidden = true;
-    var picks = ["😀", "😄", "😉", "🙂", "😎", "🤔", "😈", "🥶", "🕯️", "⚔️", "🛡️", "✨", "🔥", "❄️", "🌙", "📜", "🏰", "🍻", "👑", "🐺", "🧙", "🧝", "🗡️", "💀"];
+    var picks = [
+      "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","😍","😘","😎","🤩","🤔","🤨","😐","😶","🙄","😴","😡","🤯","🥶","😈","👻","💀",
+      "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","✨","🔥","⚡","❄️","☀️","🌙","⭐","🌟","☁️","🌧️","🌩️","🌈",
+      "👍","👎","👏","🙌","🙏","💪","👀","💬","🫡","🤝","👑","⚔️","🛡️","🏹","🗡️","🪓","🔨","⛏️","🧪","📜","📖","🏰","🧙","🧝","🐺","🐉","🍻","🍗","🍞","🧀","🧭","🎯","🎲","🏆","💰"
+    ];
     picks.forEach(function (emoji) {
       var b = document.createElement("button");
       b.type = "button";
@@ -216,13 +221,15 @@
       b.addEventListener("click", function () {
         messageInput.value = (messageInput.value ? messageInput.value + " " : "") + emoji + " ";
         messageInput.focus();
-        panel.hidden = true;
       });
       panel.appendChild(b);
     });
     toggle.addEventListener("click", function () {
       panel.hidden = !panel.hidden;
+      toggle.classList.toggle("is-open", !panel.hidden);
+      toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
     });
+    toggle.setAttribute("aria-expanded", "false");
     form.insertBefore(toggle, compose);
     form.insertBefore(panel, compose);
   }
@@ -341,13 +348,16 @@
     var host = document.getElementById("menu-google-login");
     if (!host) return;
     if (state.me) {
+      menuGoogleRendered = false;
       host.innerHTML = '<div class="muted">Connecte en tant que ' + sanitize(state.me.name) + ".</div>";
       return;
     }
     if (!googleReady || !window.google || !window.google.accounts || !window.google.accounts.id) {
+      menuGoogleRendered = false;
       host.innerHTML = '<div class="muted">Chargement Google...</div>';
       return;
     }
+    if (menuGoogleRendered && host.childElementCount > 0) return;
     host.innerHTML = "";
     window.google.accounts.id.renderButton(host, {
       theme: "filled_black",
@@ -356,6 +366,7 @@
       text: "signin_with",
       width: 300
     });
+    menuGoogleRendered = true;
   }
 
   function waitGoogleInit() {
@@ -442,9 +453,6 @@
   window.addEventListener("nordhaven:menu-ready", function () {
     renderMenuGoogleButton();
   });
-  setInterval(function () {
-    if (!state.me) renderMenuGoogleButton();
-  }, 1200);
 
   setAuthUi();
   waitGoogleInit();

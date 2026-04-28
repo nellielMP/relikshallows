@@ -165,19 +165,25 @@ body {
 
 .topbar__resources {
   margin: 0;
-  font-size: 0.82rem;
   color: #d8c8a7;
   font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  font-size: 0.95rem;
+  gap: 0.7rem;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 103, 68, 0.65);
+  background: linear-gradient(180deg, rgba(38, 28, 15, 0.72), rgba(18, 13, 8, 0.84));
+  box-shadow: inset 0 1px 0 rgba(255, 233, 184, 0.08), 0 8px 16px rgba(0, 0, 0, 0.24);
+  font-size: 0.97rem;
 }
 
 .topbar-gold {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.35rem;
+  padding-right: 0.15rem;
+  border-right: 1px solid rgba(122, 103, 68, 0.45);
 }
 
 .topbar-gold .gold-icon {
@@ -187,8 +193,9 @@ body {
 
 .topbar-gold__val {
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   color: #e8c97a;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
 }
 
 .topbar-settings {
@@ -256,28 +263,111 @@ body {
 .topbar-xp {
   display: inline-flex;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.45rem;
+}
+
+.topbar-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.45rem;
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(130, 112, 160, 0.7);
+  background: linear-gradient(180deg, rgba(58, 42, 80, 0.78), rgba(34, 24, 52, 0.88));
+  color: #e9ddff;
+  font-size: 0.77rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.42);
 }
 
 .topbar-xp__label {
-  color: #d8ccb9;
-  font-size: 0.9rem;
+  color: #e4d9c7;
+  font-size: 0.83rem;
   white-space: nowrap;
 }
 
 .topbar-xp__track {
-  width: 11rem;
-  height: 0.62rem;
-  border: 1px solid rgba(104, 90, 123, 0.8);
+  width: 12rem;
+  height: 0.7rem;
+  border: 1px solid rgba(104, 90, 123, 0.9);
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(20, 16, 26, 0.7);
+  background: rgba(16, 11, 22, 0.92);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .topbar-xp__track > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #6a56aa, #b395ff);
+  background: linear-gradient(90deg, #6750a8, #9c80e4 55%, #c2a4ff);
+}
+
+.starter-tuto {
+  border: 1px solid rgba(126, 109, 72, 0.7);
+  border-radius: 10px;
+  background: linear-gradient(150deg, rgba(45, 34, 17, 0.85), rgba(18, 13, 8, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 226, 164, 0.09);
+}
+
+.starter-tuto__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.starter-tuto__progress {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #d8c18a;
+}
+
+.starter-tuto__hint {
+  margin: 0.2rem 0 0;
+}
+
+.starter-tuto__list {
+  margin: 0.42rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.starter-tuto__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.36rem;
+  border-radius: 6px;
+  border: 1px solid rgba(111, 95, 66, 0.45);
+  background: rgba(0, 0, 0, 0.2);
+  color: #d7ccb7;
+}
+
+.starter-tuto__item.is-done {
+  border-color: rgba(90, 132, 90, 0.62);
+  background: rgba(30, 54, 31, 0.35);
+  color: #d7ebcd;
+}
+
+.starter-tuto__dot {
+  width: 1rem;
+  text-align: center;
+  color: #ccb27a;
+  font-weight: 700;
+}
+
+.starter-tuto__item.is-done .starter-tuto__dot {
+  color: #9ad18e;
+}
+
+.starter-tuto__dismiss {
+  margin-top: 0.45rem;
+  width: 100%;
 }
 
 .topbar__tools {
@@ -310,9 +400,27 @@ body {
 
 .authbar__logout {
   width: auto;
-  min-width: 6rem;
-  font-size: 0.75rem;
-  padding: 0.3rem 0.45rem;
+  min-width: 7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffe9e9;
+  border: 1px solid rgba(196, 108, 108, 0.82);
+  background: linear-gradient(180deg, rgba(145, 44, 44, 0.95), rgba(92, 28, 28, 0.95));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 214, 214, 0.22);
+  border-radius: 999px;
+  padding: 0.34rem 0.62rem;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+
+.authbar__logout:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 229, 229, 0.24);
+}
+
+.authbar__logout:active {
+  transform: translateY(0);
 }
 
 .topbar__link {
@@ -5404,11 +5512,22 @@ body.body--menu .panel--center .panel__body {
   align-self: flex-start;
 }
 
+.mp-chat__emoji-toggle.is-open {
+  border-color: rgba(155, 135, 98, 0.95);
+  background: rgba(75, 58, 36, 0.45);
+}
+
 .mp-chat__emoji-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 0.2rem;
   margin: 0.15rem 0 0.2rem;
+  max-height: 11rem;
+  overflow: auto;
+  padding: 0.25rem;
+  border: 1px solid rgba(95, 82, 60, 0.55);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .mp-chat__emoji-btn {
