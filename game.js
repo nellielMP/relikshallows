@@ -2,6 +2,7 @@
   "use strict";
 
   var STORAGE_KEY = "nordhaven-save-v3";
+  var STARTING_GOLD = 1000;
   var NAME_RE = /^[A-Za-zÀ-ÿ' -]{2,24}$/;
   var combatAutoRafId = null;
   var LEGACY_RESET_MARKER = "nordhaven-editor-legacy-reset-v1";
@@ -1210,6 +1211,7 @@
   var authUser = null;
   var guildState = null;
   var profileSyncTimer = null;
+  var topbarSettingsOpen = false;
 
   var els = {
     leftTitle: document.getElementById("left-title"),
@@ -1230,6 +1232,7 @@
     if (!els.topbarResources) return;
     if (!state.player) {
       els.topbarResources.innerHTML = "";
+      topbarSettingsOpen = false;
       return;
     }
     var xpNow = Math.floor(state.player.xp || 0);
@@ -1243,6 +1246,15 @@
       '<span class="topbar-gold__val">' +
       String(state.gold) +
       "</span></span>" +
+      '<span class="topbar-settings">' +
+      '<button type="button" class="topbar-settings__btn" id="topbar-settings-toggle" aria-haspopup="menu" aria-expanded="' +
+      (topbarSettingsOpen ? "true" : "false") +
+      '" title="Parametres">⚙</button>' +
+      '<span class="topbar-settings__menu' +
+      (topbarSettingsOpen ? " is-open" : "") +
+      '" role="menu">' +
+      '<button type="button" class="topbar-settings__action" id="topbar-reset-character" role="menuitem">Reset perso</button>' +
+      "</span></span>" +
       '<span class="topbar-xp"><span class="topbar-xp__label">XP ' +
       String(xpNow) +
       "/" +
@@ -1250,6 +1262,38 @@
       '</span><span class="topbar-xp__track"><span style="width:' +
       String(xpPct) +
       '%"></span></span></span>';
+
+    var settingsBtn = document.getElementById("topbar-settings-toggle");
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", function () {
+        topbarSettingsOpen = !topbarSettingsOpen;
+        renderTopbarResources();
+      });
+    }
+    var resetBtn = document.getElementById("topbar-reset-character");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", function () {
+        topbarSettingsOpen = false;
+        resetCharacterFromSettings();
+      });
+    }
+  }
+
+  async function resetCharacterFromSettings() {
+    if (!state.player) return;
+    var ok = window.confirm("Reset ton personnage ? Toute ta progression sera supprimee.");
+    if (!ok) return;
+    if (authUser) {
+      try {
+        await apiJson("/api/character", { method: "DELETE" });
+        authUser.hasCharacter = false;
+      } catch (err) {
+        showToast((err && err.message) || "Reset impossible.", true);
+        return;
+      }
+    }
+    startFreshCharacterFlow();
+    showToast("Personnage reset. Cree un nouveau heros.");
   }
 
   function initEditorShortcutToggle() {
@@ -1262,6 +1306,14 @@
       showToast(editorShortcutVisible ? "Lien éditeur affiché." : "Lien éditeur masqué.");
     });
   }
+
+  document.addEventListener("click", function (event) {
+    if (!topbarSettingsOpen) return;
+    var inSettings = event.target && event.target.closest ? event.target.closest(".topbar-settings") : null;
+    if (inSettings) return;
+    topbarSettingsOpen = false;
+    renderTopbarResources();
+  });
 
   async function loadMyGuildState() {
     if (!authUser) {
@@ -1281,7 +1333,7 @@
       mode: "menu",
       currentVillage: "Nordhaven",
       player: null,
-      gold: 25,
+      gold: STARTING_GOLD,
       inventory: [],
       equipped: { weapon: null, armor: null, necklace: null },
       learnedSpells: [],
@@ -1486,7 +1538,7 @@
     state.mode = "creation";
     state.player = null;
     state.currentVillage = "Nordhaven";
-    state.gold = 25;
+    state.gold = STARTING_GOLD;
     state.inventory = [];
     state.equipped = { weapon: null, armor: null, necklace: null };
     state.learnedSpells = [];

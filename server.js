@@ -511,6 +511,36 @@ app.post("/api/character", async (req, res) => {
   return res.status(201).json({ character });
 });
 
+app.delete("/api/character", async (req, res) => {
+  const user = await getAuthenticatedUser(req);
+  if (!user) return res.status(401).json({ error: "Authentification requise" });
+
+  if (user.guildId) {
+    const guild = await guildsCol().findOne({ id: user.guildId });
+    if (guild) {
+      const newMembers = (Array.isArray(guild.memberUserIds) ? guild.memberUserIds : []).filter((x) => x !== user.id);
+      if (newMembers.length === 0) {
+        await guildsCol().deleteOne({ id: guild.id });
+      } else {
+        const newChief = guild.chiefUserId === user.id ? newMembers[0] : guild.chiefUserId;
+        await guildsCol().updateOne(
+          { id: guild.id },
+          { $set: { memberUserIds: newMembers, chiefUserId: newChief, updatedAt: Date.now() } }
+        );
+      }
+    }
+  }
+
+  await usersCol().updateOne(
+    { id: user.id },
+    {
+      $unset: { character: "", profileSnapshot: "", guildId: "", arenaRating: "", arenaWins: "", arenaLosses: "" },
+      $set: { updatedAt: Date.now() }
+    }
+  );
+  return res.json({ ok: true });
+});
+
 app.post("/api/profile/snapshot", async (req, res) => {
   const user = await getAuthenticatedUser(req);
   if (!user) return res.status(401).json({ error: "Authentification requise" });
